@@ -3,6 +3,7 @@
 #include <chrono>
 #include <thread>
 #include <cstdint>
+#include <limits>
 class Timer {//FUNCTION_BLOCK:Timer
 public:
 bool Start;
@@ -29,16 +30,15 @@ else if (T1.Done == true) {
 
 
 int main() {
-  uint cycleCount = 0;
   while (true) {
     gatherInputs();
     PLC_PROG();
 
     handleOutputs();
     std::this_thread::sleep_for(std::chrono::milliseconds(1));
-    cycleCount++;
-    if(cycleCount >= 604800000){
-        cycleCount = 0;
+    PROGRAM_COUNT++;
+    if(PROGRAM_COUNT >= std::numeric_limits<uint64_t>::max()){
+        PROGRAM_COUNT = 0;
     }
    }
   return 0;

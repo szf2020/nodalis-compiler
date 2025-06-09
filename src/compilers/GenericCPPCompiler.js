@@ -126,7 +126,7 @@ export class GenericCPPCompiler extends Compiler {
                 });
                 taskCode += 
 `
-    if(cycleCount % ${t.Interval} == 0){
+    if(PROGRAM_COUNT % ${t.Interval} == 0){
         ${progCode}
     }
 `;
@@ -144,18 +144,18 @@ export class GenericCPPCompiler extends Compiler {
 #include <chrono>
 #include <thread>
 #include <cstdint>
+#include <limits>
 ${transpiledCode}
 
 int main() {
-  uint cycleCount = 0;
   while (true) {
     gatherInputs();
     ${taskCode}
     handleOutputs();
     std::this_thread::sleep_for(std::chrono::milliseconds(1));
-    cycleCount++;
-    if(cycleCount >= 604800000){
-        cycleCount = 0;
+    PROGRAM_COUNT++;
+    if(PROGRAM_COUNT >= std::numeric_limits<uint64_t>::max()){
+        PROGRAM_COUNT = 0;
     }
    }
   return 0;
