@@ -1,18 +1,33 @@
 #include "imperium.h"
 #include "modbus.h"
+#include <chrono>
+#include <thread>
+#include <cstdint>
+// Global variable declarations
+uint64_t SW0001;
+
 class PLS {//FUNCTION_BLOCK:PLS
 public:
-  bool EN;
-  int16_t PT;
-  bool Q;
-  auto Timer;
-  int16_t Time;
+bool EN;
+int16_t PT;
+bool Q;
+static TP Timer;
+int16_t Time;
   void operator()() {
+    Timer();
+    Timer.IN = EN;
+    Timer.PT = PT;
+    Q = ( Timer.Q );
   }
 };
 
 void PLC_LD() { //PROGRAM:PLC_LD
-auto TP00010;
+static TP TP00010;
+TP00010();
+TP00010.IN = ! getBit(IL0001, 0) && ( ( getBit(SW0001, 0) ) );
+TP00010.PT = 1000;
+Time = ( TP00010.ET );
+writeAddress("%Q0.0", ! ( ( ( Time > 2000 ) ) || TP00010.Q ));
 }
 
 

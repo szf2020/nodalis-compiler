@@ -16,7 +16,9 @@
 
 
 export function convertExpression(expr) {
-  var results =  expr
+  if (Array.isArray(expr)) expr = expr.join(" ");
+
+  var results = expr
     .replace(/\bAND\b/gi, '&&')
     .replace(/\bOR\b/gi, '||')
     .replace(/\bNOT\b/gi, '!')
@@ -26,17 +28,20 @@ export function convertExpression(expr) {
     .replace(/:=/g, '=')
     .replace(/\bTRUE\b/gi, 'true')
     .replace(/\bFALSE\b/gi, 'false')
-    .replace(/(?<![=!<>])=(?![=])/g, '=='); // '=' becomes '==' if not already comparison
-    const parts = results.split(" ");
-    results = "";
-    parts.forEach((e) => {
-        if(/^%[IQM]/i.test(e)){
-            results += `readAddress("${e}") `;
-        }
-        else{
-            results += e + " ";
-        }
+    .replace(/(?<![=!<>])=(?![=])/g, '==');
+
+  // Replace %I/Q/M references with readAddress(...) before anything else
+  const parts = results.split(/\s+/);
+  results = parts.map(e => {
+    return /^%[IQM]\d+(\.\d+)?$/i.test(e) ? `readAddress("${e}")` : e;
+  }).join(' ');
+
+  // Now replace var.bit (but NOT %I0001.0) with getBit(...)
+  if(results.indexOf("readAddress") === -1){
+    results = results.replace(/\b(?!%)(([A-Za-z_]\w*)\.(\d+))\b/g, (_, full, base, bit) => {
+        return `getBit(${base}, ${bit})`;
     });
-    results = results.trim();
-    return results;
+  }
+  return results;
 }
+

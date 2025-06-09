@@ -50,6 +50,14 @@ function runTest() {
   });
   compiler.compile();
 
+  compiler = new GenericCPPCompiler({
+    sourcePath: inputPath,
+    outputPath,
+    target: 'executable',
+    resourceName: "PLC1"
+  });
+  compiler.compile();
+
 }
 
 runTest();

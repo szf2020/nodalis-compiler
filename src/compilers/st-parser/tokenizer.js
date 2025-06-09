@@ -16,16 +16,21 @@
 
 export function tokenize(code) {
   const tokens = [];
-
-  const regex = /\b(?:PROGRAM|FUNCTION_BLOCK|FUNCTION|VAR_INPUT|VAR_OUTPUT|VAR|END_VAR|END_FUNCTION_BLOCK|END_FUNCTION|END_PROGRAM|:=|\b[A-Za-z_]\w*\b|\d+|;|:|\(|\)|\+|\-|\*|\/|\>|\<|\=)\b|[^\s]/gi;
-
   let match;
-  while ((match = regex.exec(code)) !== null) {
-    const value = match[0];
-    if (value.trim()) {
-      tokens.push({ type: getTokenType(value), value });
-    }
-  }
+  //const regex = /(%[IQM][0-9]+(?:\.[0-9]+)?)|(:=)|([A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)|(\d+)|(;|:|\(|\)|\+|\-|\*|\/|>|<|=)/g;
+  const regex = /(%[IQM]\d+(?:\.\d+)?)|(:=)|([A-Za-z_]\w*\.\d+)|([A-Za-z_]\w*\.\w+)|([A-Za-z_]\w*)|(\d+)|([:;()<>+\-*/=])/g;
+
+while ((match = regex.exec(code)) !== null) {
+  const [_, address, assign, bitIdentifier, propIdentifier, identifier, number, symbol] = match;
+
+  if (address) tokens.push({ type: 'ADDRESS', value: address });
+  else if (assign) tokens.push({ type: 'SYMBOL', value: assign });
+  else if (bitIdentifier) tokens.push({ type: 'IDENTIFIER', value: bitIdentifier });
+  else if (propIdentifier) tokens.push({ type: 'IDENTIFIER', value: propIdentifier });
+  else if (identifier) tokens.push({ type: 'IDENTIFIER', value: identifier });
+  else if (number) tokens.push({ type: 'NUMBER', value: number });
+  else if (symbol) tokens.push({ type: 'SYMBOL', value: symbol });
+}
 
   return tokens;
 }
@@ -41,7 +46,7 @@ function getTokenType(value) {
   if (keywords.has(value.toUpperCase())) return 'KEYWORD';
   if (symbols.has(value)) return 'SYMBOL';
   if (/^\d+$/.test(value)) return 'NUMBER';
-  if (/^[A-Za-z_]\w*$/.test(value)) return 'IDENTIFIER';
+  if (/^[A-Za-z_]\w*$|(%[IQM][\d.]+)/.test(value)) return 'IDENTIFIER';
 
   return 'UNKNOWN';
 }

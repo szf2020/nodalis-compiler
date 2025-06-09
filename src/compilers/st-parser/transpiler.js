@@ -21,6 +21,10 @@ export function transpile(ast) {
 
   for (const block of ast.body) {
     switch (block.type) {
+      case 'GlobalVars':
+        lines.push('// Global variable declarations');
+        lines.push(...declareVars(block.variables));
+        break;
       case 'ProgramDeclaration':
         lines.push(`void ${block.name}() { //PROGRAM:${block.name}`);
         lines.push(...declareVars(block.varSections));
@@ -46,9 +50,9 @@ export function transpile(ast) {
       case 'FunctionBlockDeclaration':
         lines.push(`class ${block.name} {//FUNCTION_BLOCK:${block.name}`);
         lines.push('public:');
-        for (const v of block.varSections) {
-          lines.push(`  ${mapType(v.type)} ${v.name};`);
-        }
+        //for (const v of block.varSections) {
+          lines.push(...declareVars(block.varSections));
+        //}
         lines.push('  void operator()() {');
         lines.push(...transpileStatements(block.statements).map(line => `    ${line}`));
         lines.push('  }');
@@ -65,27 +69,47 @@ function mapStatement(stmt){
   try{
     switch (stmt.type) {
         case 'ASSIGN': {
-          let left = stmt.left;
-          let right = convertExpression(stmt.right.join(" "));
-          if (/^%[IQM]/i.test(left)) {
-            return [`writeAddress("${left}", ${right});`];
-          } else {
-            return [`${left} = ${right};`];
+          const left = stmt.left;
+          const rightExpr = convertExpression(stmt.right);
+          if (isIOAddress(left)) {
+            return `writeAddress("${left}", ${rightExpr});`;
+          } else if (isBitSelector(left)) {
+            const [varName, bitIndex] = left.split('.');
+            return `setBit(&${varName}, ${bitIndex}, ${rightExpr});`;
           }
+          return `${left} = ${rightExpr};`;
         }
 
-        case 'IF':
-          return [
-            `if (${convertExpression(stmt.condition)}) {`,
-            ...transpileStatements(stmt.thenBranch)?.map(s => `  ${s}`),
-            `} else {`,
-            ...transpileStatements(stmt.elseBranch)?.map(s => `  ${s}`),
-            `}`
-          ];
+        case 'IF': {
+          const cond = convertExpression(Array.isArray(stmt.condition) ? stmt.condition.join(' ') : stmt.condition);
+          const lines = [];
+
+          lines.push(`if (${cond}) {`);
+          lines.push(...transpileStatements(stmt.thenBlock).map(s => `  ${s}`));
+          lines.push(`}`);
+
+          if (stmt.elseIfBlocks && stmt.elseIfBlocks.length > 0) {
+            for (const elif of stmt.elseIfBlocks) {
+              const elifCond = convertExpression(Array.isArray(elif.condition) ? elif.condition.join(' ') : elif.condition);
+              lines.push(`else if (${elifCond}) {`);
+              lines.push(...transpileStatements(elif.block).map(s => `  ${s}`));
+              lines.push(`}`);
+            }
+          }
+
+          if (stmt.elseBlock && stmt.elseBlock.length > 0) {
+            lines.push(`else {`);
+            lines.push(...transpileStatements(stmt.elseBlock).map(s => `  ${s}`));
+            lines.push(`}`);
+          }
+
+          return lines;
+        }
 
         case 'WHILE':
+          const wcond = convertExpression(Array.isArray(stmt.condition) ? stmt.condition.join(' ') : stmt.condition);
           return [
-            `while (${convertExpression(stmt.condition)}) {`,
+            `while (${wcond}) {`,
             ...transpileStatements(stmt.body)?.map(s => `  ${s}`),
             `}`
           ];
@@ -96,7 +120,8 @@ function mapStatement(stmt){
             ...transpileStatements(stmt.body)?.map(s => `  ${s}`),
             `}`
           ];
-
+        case "CALL":
+          return [stmt.name + "();"];
         default:
           return [`// unsupported: ${stmt.type}`];
       }
@@ -113,8 +138,20 @@ function transpileStatements(statements) {
 
 
 function declareVars(varSections) {
-  return varSections.map(v => `${mapType(v.type)} ${v.name};`);
+  return varSections.map(v => {
+    const cleanedType = v.type.trim().toUpperCase();
+    const isFunctionBlockType = !mapType(cleanedType) || mapType(cleanedType) === 'auto';
+    let init = "";
+    if (v.initialValue !== undefined && v.initialValue !== null) {
+      init = ` = ${v.initialValue}`;
+    }
+    if (v.sectionType==='VAR' && isFunctionBlockType) {
+      return `static ${v.type} ${v.name};`; // assume Function Block type
+    }
+    return `${mapType(cleanedType)} ${v.name}${init};`;
+  });
 }
+
 
 export function mapType(type) {
   const types = {
@@ -140,5 +177,13 @@ export function mapType(type) {
     'STRING': 'std::string',
     'WSTRING': 'std::wstring'
   };
-  return types[type.toUpperCase()] || 'auto';
+  return types[type.trim().toUpperCase()] || 'auto';
+}
+
+function isBitSelector(expr) {
+  return typeof expr === 'string' && /^[A-Za-z_]\w*\.\d+$/.test(expr);
+}
+
+function isIOAddress(expr) {
+  return typeof expr === 'string' && /^%[IQM]/i.test(expr);
 }

@@ -21,7 +21,10 @@ PT : INT;
 Time  : INT;
 
     END_VAR
-    
+    Timer.IN := EN;
+Timer.PT := PT;
+Q := (Timer.Q);
+
 END_FUNCTION_BLOCK
 
         PROGRAM PLC_LD
@@ -29,5 +32,9 @@ END_FUNCTION_BLOCK
         TP00010  : TP;
 
     END_VAR
-    
+    TP00010.IN := NOT IL0001.0 AND ((SW0001.0));
+TP00010.PT := 1000;
+Time := (TP00010.ET);
+%Q0.0 := NOT (((Time > 2000)) OR TP00010.Q);
+
 END_PROGRAM

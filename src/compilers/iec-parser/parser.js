@@ -1615,18 +1615,18 @@ export class Rung extends Serializable {
     static fromXML(xml, parent) {
         if(!isValid(xml)) return null;
         var rung = new Rung(xml.getAttribute("evaluationOrder"), parent);
-        var onodes = xml.getElementsByTagName("LdObject,CommonObject,FbdObject");
-        forEachElem(onodes, (elem) => {
-            if(elem.tagName == "CommonObject"){
-                rung.Objects.push(CommonObject.fromXML(elem, rung));
-            }
-            else if(elem.tagName == "LdObject"){
+        var lnodes = xml.getElementsByTagName("LdObject");
+        var fnodes = xml.getElementsByTagName("FbdObject");
+        forEachElem(lnodes, (elem) => {
+            if(elem.tagName == "LdObject"){
                 rung.Objects.push(LdObject.fromXML(elem, rung));
             }
-            else if(elem.tagName == "FbdObject"){
+        });
+        forEachElem(fnodes, (elem) => {
+            if(elem.tagName == "FbdObject"){
                 rung.Objects.push(FbdObject.fromXML(elem, rung));
             }
-        });
+        })
         return rung;
     }
 
@@ -3101,10 +3101,10 @@ export class FbdObject extends Serializable {
             xml.getAttribute("identifier"),
             xml.getAttribute("typeName"),
             xml.getAttribute("instanceName"),
-            Size.fromXML(xml.getElementsByTagName("Size"))[0],
-            RelPosition.fromXML(xml.getElementsByTagName("RelPosition"))[0],
-            InputVariables.fromXML(xml.getElementsByTagName("InputVariables")[0]),
-            OutputVariables.fromXML(xml.getElementsByTagName("OutputVariables")[0]),
+            Size.fromXML(xml.getElementsByTagName("Size").item(0)),
+            RelPosition.fromXML(xml.getElementsByTagName("RelPosition").item(0)),
+            InputVariables.fromXML(xml.getElementsByTagName("InputVariables").item(0)),
+            OutputVariables.fromXML(xml.getElementsByTagName("OutputVariables").item(0)),
             conins, conouts,
             parent
         );

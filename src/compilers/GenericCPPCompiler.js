@@ -15,13 +15,13 @@
 // limitations under the License.
 
 import { execSync } from 'child_process';
+import os from 'os';
 import fs from 'fs';
 import path from "path";
 import { Compiler, IECLanguage, OutputType, CommunicationProtocol } from './Compiler.js';
 import * as iec from "./iec-parser/parser.js";
 import { parseStructuredText } from './st-parser/parser.js';
 import { transpile } from './st-parser/transpiler.js';
-import { mapType } from './st-parser/transpiler.js';
 
 export class GenericCPPCompiler extends Compiler {
     constructor(options) {
@@ -141,6 +141,9 @@ export class GenericCPPCompiler extends Compiler {
         const cppCode = 
 `#include "imperium.h"
 #include "modbus.h"
+#include <chrono>
+#include <thread>
+#include <cstdint>
 ${transpiledCode}
 
 int main() {
@@ -176,23 +179,47 @@ int main() {
             fs.copyFileSync(path.join(coreDir, file), path.join(outputPath, file));
         }
 
-        if (target === 'executable') {
-            let compiler = null;
-            try {
+       if (target === 'executable') {
+        let compiler = null;
+        const isWindows = os.platform() === 'win32';
+
+        // Step 1: Detect compiler
+        try {
             execSync('clang++ --version', { stdio: 'ignore' });
             compiler = 'clang++';
+        } catch {
+            try {
+            execSync('g++ --version', { stdio: 'ignore' });
+            compiler = 'g++';
             } catch {
             try {
-                execSync('g++ --version', { stdio: 'ignore' });
-                compiler = 'g++';
+                execSync('cl.exe /?', { stdio: 'ignore' });
+                compiler = 'cl.exe';
             } catch {
-                throw new Error('No C++ compiler found (clang++ or g++)');
+                throw new Error('No C++ compiler found (clang++, g++, or cl.exe)');
             }
             }
+        }
 
-            const exeFile = path.join(outputPath, filename);
-            const compileCmd = `${compiler} -std=c++17 -o \"${exeFile}\" \"${cppFile}\" \"${path.join(outputPath, 'imperium.cpp')}\" \"${path.join(outputPath, 'modbus_support.cpp')}\"`;
-            execSync(compileCmd, { stdio: 'inherit' });
+        // Step 2: Determine output file name
+        let exeFile = path.join(outputPath, filename);
+        if (isWindows && !exeFile.endsWith('.exe')) {
+            exeFile += '.exe';
+        }
+
+        // Step 3: Build compile command
+        let compileCmd;
+
+        if (compiler === 'cl.exe') {
+            // cl.exe syntax
+            compileCmd = `"cl.exe" /EHsc /std:c++17 /Fe:"${exeFile}" "${cppFile}" "${path.join(outputPath, 'imperium.cpp')}" "${path.join(outputPath, 'modbus.cpp')}"`;
+        } else {
+            // g++ or clang++ syntax
+            compileCmd = `${compiler} -std=c++17 -o "${exeFile}" "${cppFile}" "${path.join(outputPath, 'imperium.cpp')}" "${path.join(outputPath, 'modbus.cpp')}"`;
+        }
+
+        // Step 4: Execute compile command
+        execSync(compileCmd, { stdio: 'inherit' });
         }
     }
 

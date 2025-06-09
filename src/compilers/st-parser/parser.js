@@ -15,6 +15,7 @@
 // limitations under the License.
 
 import { tokenize } from './tokenizer.js';
+import {mapType} from "./transpiler.js";
 
 export function parseStructuredText(code) {
   const tokens = tokenize(code);
@@ -47,11 +48,36 @@ export function parseStructuredText(code) {
         return parseFunction();
       case 'FUNCTION_BLOCK':
         return parseFunctionBlock();
+      case 'VAR_GLOBAL':
+        return parseGlobalVarSection();
       default:
         consume();
         return null;
     }
   }
+
+  function parseGlobalVarSection() {
+    expect('VAR_GLOBAL');
+    const variables = [];
+
+    while (peek() && peek().value.toUpperCase() !== 'END_VAR') {
+      const name = consume().value;
+      expect(':');
+      const type = consume().value;
+      let initialValue = null;
+
+      if (peek()?.value === ':=') {
+        consume(); // consume ':='
+        initialValue = consume().value;
+      }
+      variables.push({ name, type, initialValue, sectionType: 'VAR_GLOBAL' });
+      if (peek()?.value === ';') consume();
+    }
+
+    expect('END_VAR');
+    return { type: 'GlobalVars', variables };
+  }
+
 
   function parseVarSection() {
     const variables = [];
@@ -61,7 +87,13 @@ export function parseStructuredText(code) {
       const name = consume().value;
       expect(':');
       const type = consume().value;
-      variables.push({ name, type, sectionType });
+      let initialValue = null;
+
+      if (peek()?.value === ':=') {
+        consume(); // consume ':='
+        initialValue = consume().value;
+      }
+      variables.push({ name, type, initialValue, sectionType });
       if (peek()?.value === ';') consume();
     }
     expect('END_VAR');
@@ -77,72 +109,107 @@ export function parseStructuredText(code) {
     return statements;
   }
 
-  function parseStatement() {
-    const token = peek();
-    if (!token) return null;
+function parseStatement() {
+  const token = peek();
+  if (!token) return null;
 
-    const upper = token.value.toUpperCase();
-    if (upper === 'IF') return parseIf();
-    if (upper === 'WHILE') return parseWhile();
-    if (upper === 'FOR') return parseFor();
-    if (upper === 'REPEAT') return parseRepeat();
-    if (upper === 'CASE') return parseCase();
+  if (token.value.toUpperCase() === 'IF') return parseIf();
+  if (token.value.toUpperCase() === 'WHILE') return parseWhile();
+  if (token.value.toUpperCase() === 'FOR') return parseFor();
+  if (token.value.toUpperCase() === 'REPEAT') return parseRepeat();
+  if (token.value.toUpperCase() === 'CASE') return parseCase();
 
-    const col = peek(1);
-    const eq = peek(2);
-    if (col?.value === ':' && eq?.value === '=') {
-      const left = consume().value;
-      consume();
-      consume();
-      const right = [];
-      while (peek() && peek().value !== ';') {
-        right.push(consume().value);
-      }
-      if (peek()?.value === ';') consume();
-      return { type: 'ASSIGN', left, right };
-    }
+  // Assignment: x := y;
+  const lhsTokens = [];
+let i = 0;
+while (peek(i) && peek(i).value !== ':=' && peek(i).value !== ';') {
+  lhsTokens.push(peek(i));
+  i++;
+}
+if (peek(i)?.value === ':=') {
+  const lhs = lhsTokens.map(t => t.value).join('');
+  for (let j = 0; j < i + 1; j++) consume(); // consume LHS and :=
 
-    // Function call
-    if (peek(1)?.value === '(') {
-      const name = consume().value;
-      consume(); // (
-      const args = [];
-      while (peek() && peek().value !== ')') {
-        args.push(consume().value);
-        if (peek()?.value === ',') consume();
-      }
-      consume(); // )
-      if (peek()?.value === ';') consume();
-      return { type: 'CALL', name, args };
-    }
+  const right = [];
+  while (peek() && peek().value !== ';') {
+    right.push(consume().value);
+  }
+  if (peek()?.value === ';') consume();
+  return { type: 'ASSIGN', left: lhs, right };
+}
 
-    consume();
-    return null;
+  // Function block call like: T1();
+  if (token.value && peek(1)?.value === '(' && peek(2)?.value === ')') {
+    const name = consume().value;
+    consume(); // (
+    consume(); // )
+    if (peek()?.value === ';') consume();
+    return { type: 'CALL', name };
   }
 
-  function parseIf() {
-    consume(); // IF
-    const condition = consume().value;
+  consume(); // Skip unknown
+  return null;
+}
+
+
+function parseIf() {
+  consume(); // IF
+
+  // Collect condition tokens until THEN
+  const conditionTokens = [];
+  while (peek() && peek().value.toUpperCase() !== 'THEN') {
+    conditionTokens.push(consume().value);
+  }
+  consume(); // THEN
+
+  const thenBlock = parseStatementsUntil(['ELSIF', 'ELSE', 'END_IF']);
+  const elseIfBlocks = [];
+  let elseBlock = null;
+
+  while (peek()?.value.toUpperCase() === 'ELSIF') {
+    consume(); // ELSIF
+    const elifCondTokens = [];
+    while (peek() && peek().value.toUpperCase() !== 'THEN') {
+      elifCondTokens.push(consume().value);
+    }
     consume(); // THEN
-    const thenBlock = parseBlock(['ELSIF', 'ELSE', 'END_IF']);
-    const elseIfBlocks = [];
-    let elseBlock = null;
-
-    while (peek().value.toUpperCase() === 'ELSIF') {
-      consume(); // ELSIF
-      const elifCond = consume().value;
-      consume(); // THEN
-      const elifBlock = parseBlock(['ELSIF', 'ELSE', 'END_IF']);
-      elseIfBlocks.push({ condition: elifCond, block: elifBlock });
-    }
-
-    if (peek().value.toUpperCase() === 'ELSE') {
-      consume();
-      elseBlock = parseBlock(['END_IF']);
-    }
-
-    return { type: 'IF', condition, thenBlock, elseIfBlocks, elseBlock };
+    const elifBlock = parseStatementsUntil(['ELSIF', 'ELSE', 'END_IF']);
+    elseIfBlocks.push({ condition: elifCondTokens, block: elifBlock });
   }
+
+  if (peek()?.value.toUpperCase() === 'ELSE') {
+    consume(); // ELSE
+    elseBlock = parseStatementsUntil(['END_IF']);
+  }
+
+  if (peek()?.value.toUpperCase() === 'END_IF') {
+    consume(); // END_IF
+  }
+
+  return {
+    type: 'IF',
+    condition: conditionTokens,
+    thenBlock,
+    elseIfBlocks,
+    elseBlock
+  };
+}
+
+
+function parseStatementsUntil(endTokens) {
+  const statements = [];
+  while (peek() && !endTokens.includes(peek().value.toUpperCase())) {
+    const stmt = parseStatement();
+    if (stmt) {
+      statements.push(stmt);
+    } else {
+      console.warn('⚠️ Unrecognized statement at token:', peek());
+      consume(); // prevent infinite loop
+    }
+  }
+  return statements;
+}
+
 
   function parseWhile() {
     consume(); // WHILE
@@ -213,6 +280,11 @@ export function parseStructuredText(code) {
     while (peek() && peek().value.toUpperCase().startsWith('VAR')) {
       vars.push(...parseVarSection());
     }
+    vars.forEach((v) => {
+      if(mapType(v.type) === "auto"){
+        stmts.push({type: "CALL", name: v.name});
+      }
+    });
     stmts.push(...parseStatements('END_PROGRAM'));
     expect('END_PROGRAM');
 
@@ -230,6 +302,11 @@ export function parseStructuredText(code) {
     while (peek() && peek().value.toUpperCase().startsWith('VAR')) {
       vars.push(...parseVarSection());
     }
+    vars.forEach((v) => {
+      if(mapType(v.type) === "auto"){
+        stmts.push({type: "CALL", name: v.name});
+      }
+    });
     stmts.push(...parseStatements('END_FUNCTION'));
     expect('END_FUNCTION');
 
@@ -245,6 +322,11 @@ export function parseStructuredText(code) {
     while (peek() && peek().value.toUpperCase().startsWith('VAR')) {
       vars.push(...parseVarSection());
     }
+    vars.forEach((v) => {
+      if(mapType(v.type) === "auto"){
+        stmts.push({type: "CALL", name: v.name});
+      }
+    });
     stmts.push(...parseStatements('END_FUNCTION_BLOCK'));
     expect('END_FUNCTION_BLOCK');
 
