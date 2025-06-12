@@ -18,18 +18,25 @@ export function tokenize(code) {
   const tokens = [];
   let match;
   //const regex = /(%[IQM][0-9]+(?:\.[0-9]+)?)|(:=)|([A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)|(\d+)|(;|:|\(|\)|\+|\-|\*|\/|>|<|=)/g;
-  const regex = /(%[IQM]\d+(?:\.\d+)?)|(:=)|([A-Za-z_]\w*\.\d+)|([A-Za-z_]\w*\.\w+)|([A-Za-z_]\w*)|(\d+)|([:;()<>+\-*/=])/g;
+  const regex = /(%[IQM][A-Z]?[0-9]+(?:\.[0-9]+)?)|(:=)|([A-Za-z_]\w*\.\d+)|([A-Za-z_]\w*\.\w+)|([A-Za-z_]\w*)|(\d+)|([:;()<>+\-*/=])/g;
 
 while ((match = regex.exec(code)) !== null) {
   const [_, address, assign, bitIdentifier, propIdentifier, identifier, number, symbol] = match;
-
-  if (address) tokens.push({ type: 'ADDRESS', value: address });
-  else if (assign) tokens.push({ type: 'SYMBOL', value: assign });
-  else if (bitIdentifier) tokens.push({ type: 'IDENTIFIER', value: bitIdentifier });
-  else if (propIdentifier) tokens.push({ type: 'IDENTIFIER', value: propIdentifier });
-  else if (identifier) tokens.push({ type: 'IDENTIFIER', value: identifier });
-  else if (number) tokens.push({ type: 'NUMBER', value: number });
-  else if (symbol) tokens.push({ type: 'SYMBOL', value: symbol });
+  
+  if (address) 
+    tokens.push({ type: 'ADDRESS', value: address });
+  else if (assign) 
+    tokens.push({ type: 'SYMBOL', value: assign });
+  else if (bitIdentifier) 
+    tokens.push({ type: 'IDENTIFIER', value: bitIdentifier });
+  else if (propIdentifier) 
+    tokens.push({ type: 'IDENTIFIER', value: propIdentifier });
+  else if (identifier) 
+    tokens.push({ type: 'IDENTIFIER', value: identifier });
+  else if (number) 
+    tokens.push({ type: 'NUMBER', value: number });
+  else if (symbol) 
+    tokens.push({ type: 'SYMBOL', value: symbol });
 }
 
   return tokens;

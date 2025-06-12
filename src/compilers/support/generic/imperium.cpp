@@ -195,9 +195,7 @@ void writeBit(std::string address, bool value){
    if(index == -1){
     throw std::invalid_argument("Invalid address index: " + address);
    }
-   if(bit > -1){
-    throw std::invalid_argument("Invalid address format. Reference specifies a bit: " + address);
-   }
+   
    if(bit == -1)
    {
     throw std::invalid_argument("Invalid address bit: " + address);

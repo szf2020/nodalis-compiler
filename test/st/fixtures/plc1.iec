@@ -7,7 +7,7 @@
                     productName="Some PADT" productVersion="Edition1"
                     productRelease="2018"/>
                     <ContentHeader name="Test Project" version="1.0" creationDateTime="2017-06-14T09:00:00Z"
-                    modificationDateTime="1749659120658" organization="MTI" author="Nathan" language="En">
+                    modificationDateTime="1749693927708" organization="MTI" author="Nathan" language="En">
                 </ContentHeader>
                     <Types>
                     <GlobalNamespace>
@@ -161,7 +161,7 @@
                 </ConnectionPointOut>
 
                 </LdObject>
-<LdObject xsi:type="Coil"  operand="%Q0.0" edge="none" negated="true" latch="none">
+<LdObject xsi:type="Coil"  operand="%QX0.0" edge="none" negated="true" latch="none">
                     <RelPosition x="727.5162970406329" y="2.0000000000000036"/>
                     <ConnectionPointIn>
                     

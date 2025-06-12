@@ -34,7 +34,7 @@ TP00010();
 TP00010.IN = ! getBit(&IL0001, 0) && ( ( getBit(&SW0001_0, 0) ) );
 TP00010.PT = 1000;
 Time = ( TP00010.ET );
-writeBit("%Q0.0", ! ( ( ( Time > 2000 ) ) || TP00010.Q ));
+writeBit("%QX0.0", ! ( ( ( Time > 2000 ) ) || TP00010.Q ));
 }
 
 

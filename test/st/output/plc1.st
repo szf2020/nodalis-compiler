@@ -44,6 +44,6 @@ Time  : INT;
     TP00010.IN := NOT IL0001.0 AND ((SW0001_0.0));
 TP00010.PT := 1000;
 Time := (TP00010.ET);
-%Q0.0 := NOT (((Time > 2000)) OR TP00010.Q);
+%QX0.0 := NOT (((Time > 2000)) OR TP00010.Q);
 
 END_PROGRAM

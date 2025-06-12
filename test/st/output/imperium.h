@@ -107,7 +107,10 @@ inline std::vector<int> parseAddress(const std::string& address) {
         else if(toLowerCase(type) == "d"){
             width = 32;
         }
-
+        
+        if(bit != ""){
+            ibit = std::stoi(bit);
+        }
         
 
         addr = std::stoi(index);
@@ -144,7 +147,7 @@ inline uint8_t* getMemoryByte(int space, int addr){
         break;
     }
     if(r >= 0){
-        ret = (uint8_t*)(MEMORY[r][c]) + b;
+        ret = (uint8_t*)(&MEMORY[r][c]) + b;
     }
     return ret;
 }
@@ -345,6 +348,10 @@ void gatherInputs();
  * Assigns the outputs for the PLC.
  */
 void handleOutputs();
+
+
+void mapModule(std::string map);
+
 
 #pragma region "Standard Function Blocks"
 
