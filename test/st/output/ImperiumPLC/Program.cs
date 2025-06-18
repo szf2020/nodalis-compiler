@@ -20,7 +20,10 @@ using System;
 using System.IO;
 using System.Threading;
 using Jint;
+using Jint.Runtime;
 using Imperium;
+using System.Text.RegularExpressions;
+
 
 class ProgramEngine : ImperiumEngine
 {
@@ -28,35 +31,35 @@ class ProgramEngine : ImperiumEngine
 
     public override bool ReadBit(string address)
     {
-        ParseAddress(address, out int word, out int bit);
-        return (MEMORY[word, bit / 64] & (1UL << (bit % 64))) != 0;
+        var mem = ParseAddress(address);
+        return (GetMemoryCell(mem[0], mem[2]) & (1UL << (mem[3] % 64))) != 0;
     }
 
     public override byte ReadByte(string address)
     {
-        ParseAddress(address, out int word, out int bit);
-        return (byte)((MEMORY[word, bit / 64] >> (bit % 64)) & 0xFF);
+        var mem = ParseAddress(address);
+        return (byte)((GetMemoryCell(mem[0], mem[2]) >> (mem[3] % 64)) & 0xFF);
     }
 
     public override ushort ReadWord(string address)
     {
-        ParseAddress(address, out int word, out int bit);
-        return (ushort)((MEMORY[word, bit / 64] >> (bit % 64)) & 0xFFFF);
+        var mem = ParseAddress(address);
+        return (ushort)((GetMemoryCell(mem[0], mem[2]) >> (mem[3] % 64)) & 0xFFFF);
     }
 
     public override uint ReadDWord(string address)
     {
-        ParseAddress(address, out int word, out int bit);
-        return (uint)((MEMORY[word, bit / 64] >> (bit % 64)) & 0xFFFFFFFF);
+        var mem = ParseAddress(address);
+        return (uint)((GetMemoryCell(mem[0], mem[2])  >> (mem[3] % 64)) & 0xFFFFFFFF);
     }
 
     public override void WriteBit(string address, bool value)
     {
-        ParseAddress(address, out int word, out int bit);
+        var mem = ParseAddress(address);
         if (value)
-            MEMORY[word, bit / 64] |= (1UL << (bit % 64));
+            GetMemoryCell(mem[0], mem[2]) |= (1UL << (mem[3] % 64));
         else
-            MEMORY[word, bit / 64] &= ~(1UL << (bit % 64));
+            GetMemoryCell(mem[0], mem[2]) &= ~(1UL << (mem[3] % 64));
     }
 
     public override void WriteByte(string address, byte value)
@@ -74,32 +77,85 @@ class ProgramEngine : ImperiumEngine
         WriteGeneric(address, value, 32);
     }
 
-    private void ParseAddress(string address, out int word, out int bit)
+    public enum MemorySpace
     {
-        word = 0; bit = 0;
-        address = address.TrimStart('%');
-        if (address.Length >= 2 && (address[1] == 'X' || address[1] == 'B' || address[1] == 'W' || address[1] == 'D'))
+        I = 0,
+        Q = 1,
+        M = 2
+    }
+
+    public static ref ulong GetMemoryCell(int space, int addr)
+    {
+        int r = -1, c = 0, b = 0;
+        switch (space)
         {
-            int baseOffset = address[1] switch { 'X' => 1, 'B' => 3, 'W' => 16, 'D' => 32, _ => 1 };
-            string addr = address.Substring(2);
-            var parts = addr.Split('.')
-                .Select(p => int.TryParse(p, out var val) ? val : 0)
-                .ToArray();
-            if (parts.Length >= 2)
-            {
-                word = parts[0];
-                bit = parts[1] * baseOffset;
-            }
+            case 1: // Q
+                r = (addr * 8) / 64;
+                c = 1;
+                b = addr % 8;
+                break;
+            case 0: // I
+                r = (addr * 8) / 64;
+                c = 0;
+                b = addr % 8;
+                break;
+            case 2: // M
+                r = (addr * 8) / (64 * 14);
+                c = (addr / 112) + 2;
+                b = addr % 8;
+                break;
         }
+
+        if (r >= 0 && r < 64 && c >= 0 && c < 16)
+        {
+            return ref MEMORY[r, c];
+        }
+        throw new ArgumentOutOfRangeException();      
+    }
+
+    public static List<int> ParseAddress(string address)
+    {
+        var pattern = new Regex(@"%([IQM])([XBWDL])(\d+)(?:\.(\d+))?", RegexOptions.IgnoreCase);
+        var match = pattern.Match(address);
+
+        if (!match.Success)
+            throw new ArgumentException($"Invalid address format: {address}");
+
+        string space = match.Groups[1].Value.ToUpperInvariant();  // I, Q, M
+        string type = match.Groups[2].Value.ToUpperInvariant();   // X, W, D, etc.
+        string index = match.Groups[3].Value;                     // 0, 1, ...
+        string bit = match.Groups[4].Success ? match.Groups[4].Value : null;
+
+        int ispace = space switch
+        {
+            "M" => (int)MemorySpace.M,
+            "Q" => (int)MemorySpace.Q,
+            "I" => (int)MemorySpace.I,
+            _ => throw new ArgumentException($"Unknown memory space: {space}")
+        };
+
+        int width = type switch
+        {
+            "X" => 8,
+            "W" => 16,
+            "D" => 32,
+            _ => throw new ArgumentException($"Unknown type: {type}")
+        };
+
+        int addr = int.Parse(index);
+        int ibit = bit != null ? int.Parse(bit) : -1;
+
+        return new List<int> { ispace, width, addr, ibit };
     }
 
     private void WriteGeneric(string address, ulong value, int width)
     {
-        ParseAddress(address, out int word, out int bit);
+        var mem = ParseAddress(address);
         ulong mask = (1UL << width) - 1;
-        ulong shiftedMask = mask << (bit % 64);
-        MEMORY[word, bit / 64] &= ~shiftedMask;
-        MEMORY[word, bit / 64] |= (value & mask) << (bit % 64);
+        ulong shiftedMask = mask << (mem[3] % 64);
+        ulong location = GetMemoryCell(mem[0], mem[2]);
+        location &= ~shiftedMask;
+        location |= (value & mask) << (mem[3] % 64);
     }
 }
 
@@ -114,16 +170,28 @@ class Program
         }
 
         var engine = new ProgramEngine();
-
+        long lastExec = engine.ElapsedMilliseconds;
         string jsCode = File.ReadAllText(args[0]);
-        engine.Load(jsCode);
-        engine.Setup();
-        while (true)
+        try
         {
-            engine.SuperviseIO();
-            engine.Execute();
-            Thread.Sleep(1);
+            engine.Load(jsCode);
+            engine.Setup();
+            while (true)
+            {
+                engine.SuperviseIO();
+                if (engine.ElapsedMilliseconds - lastExec >= 100)
+                {
+                    lastExec = engine.ElapsedMilliseconds;
+                    engine.Execute();
+                }
+                Thread.Sleep(1);
+            }
         }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.ToString());
+        }
+        
     }
 }
 

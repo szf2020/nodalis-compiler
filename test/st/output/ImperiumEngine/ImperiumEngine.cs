@@ -30,17 +30,19 @@ using Jint.Runtime;
 namespace Imperium
 {
     public class StaticStore
-{
-    private readonly Dictionary<string, object> _store = new();
-
-    public object GetOrCreate(string key, Type type)
     {
-        if (_store.TryGetValue(key, out var existing)) return existing;
-        var instance = Activator.CreateInstance(type);
-        _store[key] = instance;
-        return instance!;
+        private readonly Dictionary<string, JsValue> _store = new();
+
+        public bool TryGetValue(string key, out JsValue value) =>
+            _store.TryGetValue(key, out value);
+
+        public JsValue this[string key]
+        {
+            get => _store[key];
+            set => _store[key] = value;
+        }
     }
-}
+
 
     public enum IOType { Input, Output }
 
@@ -55,18 +57,29 @@ namespace Imperium
         public int width;
         public int interval;
         public long lastPoll = 0;
-
+        public Dictionary<string, string>? protocolProperties;
         public IOMap(string json)
         {
             var dict = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(json);
-            localAddress = dict["LocalAddress"];
+            localAddress = dict["InternalAddress"];
             remoteAddress = dict["RemoteAddress"];
             moduleID = dict["ModuleID"];
             modulePort = dict["ModulePort"];
             protocol = dict["Protocol"];
-            direction = dict["Direction"].ToUpperInvariant() == "OUTPUT" ? IOType.Output : IOType.Input;
+            direction = localAddress.StartsWith("%Q") ? IOType.Output : IOType.Input;
             width = int.Parse(dict["RemoteSize"]);
-            interval = int.Parse(dict["PollInterval"]);
+            interval = int.Parse(dict["PollTime"]);
+            if (dict.TryGetValue("ProtocolProperties", out var nestedJson))
+            {
+                try
+                {
+                    protocolProperties = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(nestedJson);
+                }
+                catch
+                {
+                    protocolProperties = null;
+                }
+            }
         }
     }
     
@@ -87,7 +100,11 @@ namespace Imperium
         {
             if (!mappings.Exists(m => m.localAddress == map.localAddress))
             {
-                if (mappings.Count == 0) moduleID = map.moduleID;
+                if (mappings.Count == 0)
+                {
+                    moduleID = map.moduleID;
+                    
+                }
                 mappings.Add(map);
             }
         }
@@ -169,7 +186,7 @@ namespace Imperium
     public abstract partial class ImperiumEngine
     {
         private readonly StaticStore _staticStore = new();
-        protected readonly Engine JsEngine = new Engine(cfg => cfg.AllowClr());
+        protected readonly Engine JsEngine = new Engine(cfg => { cfg.AllowClr(); });
         private readonly List<IOClient> Clients = new();
         private readonly DateTime StartTime = DateTime.UtcNow;
 
@@ -197,7 +214,11 @@ namespace Imperium
                 if (client == null)
                 { 
                     client = CreateClient(map);
-                    if (client != null) Clients.Add(client);
+                    if (client != null)
+                    {
+                        client.Connect();
+                        Clients.Add(client);
+                    }
                 }
                 else client.AddMapping(map);
             }
@@ -214,8 +235,13 @@ namespace Imperium
 
         protected virtual IOClient? CreateClient(IOMap map)
         {
-            if (map.protocol == "MODBUS-TCP") return new ModbusClient();
-            return null;
+            IOClient client = null;
+            if (map.protocol == "MODBUS-TCP") client = new ModbusClient();
+            if (client != null)
+            {
+                client.AddMapping(map);
+            }
+            return client;
         }
 
         public static bool GetBit(uint value, int bit)
@@ -249,6 +275,21 @@ namespace Imperium
         public abstract void WriteWord(string address, ushort value);
         public abstract uint ReadDWord(string address);
         public abstract void WriteDWord(string address, uint value);
+        
+        public object CreateReference(string address)
+        {
+            address = address.ToUpperInvariant();
+
+            Type type = typeof(bool);
+            if (address.Contains(".")) type = typeof(bool);
+            else if (address.Contains("W")) type = typeof(ushort);
+            else if (address.Contains("D")) type = typeof(uint);
+            else if (address.Contains("X")) type = typeof(byte);
+
+            var refVarType = typeof(RefVar<>).MakeGenericType(type);
+            var instance = Activator.CreateInstance(refVarType, this, address);
+            return instance;
+        }
 
         private void InjectBindings()
         {
@@ -261,6 +302,11 @@ namespace Imperium
             JsEngine.SetValue("readDWord", new Func<string, uint>(ReadDWord));
             JsEngine.SetValue("writeDWord", new Action<string, uint>(WriteDWord));
             JsEngine.SetValue("elapsed", new Func<long>(() => ElapsedMilliseconds));
+            JsEngine.SetValue("mapIO", new Action<string>(MapIO));
+            JsEngine.SetValue("superviseIO", new Action(SuperviseIO));
+            JsEngine.SetValue("writeDWord", new Action<string, uint>(WriteDWord));
+            JsEngine.SetValue("log", new Action<string>(Console.WriteLine));
+            JsEngine.SetValue("error", new Action<string>(Console.Error.WriteLine));
 
             JsEngine.SetValue("getBit", new ClrFunctionInstance(JsEngine, "getBit", (thisObj, args) =>
             {
@@ -295,7 +341,7 @@ namespace Imperium
                     var jsObj = args[0].AsObject();
                     var refObj = jsObj.ToObject();
                     var bit = (int)args[1].AsNumber();
-                    var state = args[2].AsBoolean(); 
+                    var state = args[2].AsBoolean();
                     var method = typeof(ImperiumEngine).GetMethod("SetBit", new[] { refObj.GetType(), typeof(int), typeof(bool) });
                     if (method != null)
                     {
@@ -314,27 +360,24 @@ namespace Imperium
                 }
             }));
 
-            JsEngine.SetValue("RefVar", new ClrFunctionInstance(JsEngine, "RefVar", (thisObj, args) =>
-            {
-                var addr = args[0].AsString().ToUpperInvariant();
-                Type type = typeof(bool);
-                if (addr.Contains(".")) type = typeof(bool);
-                else if (addr.Contains("W")) type = typeof(ushort);
-                else if (addr.Contains("D")) type = typeof(uint);
-                else if (addr.Contains("X")) type = typeof(byte);
-                var refVarType = typeof(RefVar<>).MakeGenericType(type);
-                var instance = Activator.CreateInstance(refVarType, this, addr);
-                return JsValue.FromObject(JsEngine, instance);
-            }));
+            JsEngine.SetValue("createReference", new Func<string, object>(CreateReference));
+
 
             JsEngine.SetValue("newStatic", new ClrFunctionInstance(JsEngine, "newStatic", (thisObj, args) =>
             {
                 var key = args[0].AsString();
-                var ctor = args[1].ToObject();
-                var type = ctor.GetType();
-                var inst = _staticStore.GetOrCreate(key, type);
-                return JsValue.FromObject(JsEngine, inst);
+                var jsCtor = args[1];
+
+                if (!_staticStore.TryGetValue(key, out var instance))
+                {
+                    var jsInstance = JsEngine.Invoke(jsCtor);
+                    _staticStore[key] = jsInstance;
+                    return jsInstance;
+                }
+
+                return (JsValue)_staticStore[key];
             }));
+
             JsEngine.SetValue("resolve", new ClrFunctionInstance(JsEngine, "resolve", (thisObj, args) =>
             {
                 var val = args[0].ToObject();
@@ -359,56 +402,57 @@ namespace Imperium
         }
     }
 
+
     public class RefVar<T> where T : struct
-    {
-        public static implicit operator T(RefVar<T> r)
         {
-            return r.Value;
+            public static implicit operator T(RefVar<T> r)
+            {
+                return r.Value;
+            }
+
+            private readonly ImperiumEngine _engine;
+            private readonly string _address;
+
+            public RefVar(ImperiumEngine engine, string address)
+            {
+                _engine = engine;
+                _address = address;
+            }
+
+            public T Value
+            {
+                get => Read();
+                set => Write(value);
+            }
+
+            public string Address => _address;
+
+            private T Read()
+            {
+                if (typeof(T) == typeof(bool))
+                    return (T)(object)_engine.ReadBit(_address);
+                if (typeof(T) == typeof(byte))
+                    return (T)(object)_engine.ReadByte(_address);
+                if (typeof(T) == typeof(ushort))
+                    return (T)(object)_engine.ReadWord(_address);
+                if (typeof(T) == typeof(uint))
+                    return (T)(object)_engine.ReadDWord(_address);
+                throw new NotSupportedException($"Unsupported RefVar type: {typeof(T)}");
+            }
+
+            private void Write(T value)
+            {
+                if (typeof(T) == typeof(bool))
+                    _engine.WriteBit(_address, (bool)(object)value);
+                else if (typeof(T) == typeof(byte))
+                    _engine.WriteByte(_address, (byte)(object)value);
+                else if (typeof(T) == typeof(ushort))
+                    _engine.WriteWord(_address, (ushort)(object)value);
+                else if (typeof(T) == typeof(uint))
+                    _engine.WriteDWord(_address, (uint)(object)value);
+                else throw new NotSupportedException($"Unsupported RefVar type: {typeof(T)}");
+            }
         }
-
-        private readonly ImperiumEngine _engine;
-        private readonly string _address;
-
-        public RefVar(ImperiumEngine engine, string address)
-        {
-            _engine = engine;
-            _address = address;
-        }
-
-        public T Value
-        {
-            get => Read();
-            set => Write(value);
-        }
-
-        public string Address => _address;
-
-        private T Read()
-        {
-            if (typeof(T) == typeof(bool))
-                return (T)(object)_engine.ReadBit(_address);
-            if (typeof(T) == typeof(byte))
-                return (T)(object)_engine.ReadByte(_address);
-            if (typeof(T) == typeof(ushort))
-                return (T)(object)_engine.ReadWord(_address);
-            if (typeof(T) == typeof(uint))
-                return (T)(object)_engine.ReadDWord(_address);
-            throw new NotSupportedException($"Unsupported RefVar type: {typeof(T)}");
-        }
-
-        private void Write(T value)
-        {
-            if (typeof(T) == typeof(bool))
-                _engine.WriteBit(_address, (bool)(object)value);
-            else if (typeof(T) == typeof(byte))
-                _engine.WriteByte(_address, (byte)(object)value);
-            else if (typeof(T) == typeof(ushort))
-                _engine.WriteWord(_address, (ushort)(object)value);
-            else if (typeof(T) == typeof(uint))
-                _engine.WriteDWord(_address, (uint)(object)value);
-            else throw new NotSupportedException($"Unsupported RefVar type: {typeof(T)}");
-        }
-    }
 
     public class TON
     {

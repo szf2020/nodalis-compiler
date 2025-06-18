@@ -152,7 +152,7 @@ function declareVars(varSections, infb = false, blockName = "") {
     if(infb) fbVars.push(v.name);
     if (v.address) {
       const addr = v.address.startsWith('%') ? v.address : '%' + v.address;
-      return `${decl}${v.name} = new RefVar("${addr}");`;
+      return `${decl}${v.name} = createReference("${addr}");`;
     }
 
     const fullVarName = blockName ? `${blockName}.${v.name}` : v.name;

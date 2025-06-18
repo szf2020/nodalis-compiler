@@ -128,7 +128,7 @@ namespace Imperium
             result = 0;
             if (!ushort.TryParse(address, out var addr)) return false;
             if (!SendRequest(0x02, addr, 1, null, out var response)) return false;
-            result = (response[1] & 0x01) != 0 ? 1 : 0;
+            result = (response[2] & 0x01) != 0 ? 1 : 0;
             return true;
         }
 
@@ -136,7 +136,6 @@ namespace Imperium
         {
             if (!ushort.TryParse(address, out var addr)) return false;
             var payload = new byte[] {
-                (byte)(addr >> 8), (byte)(addr & 0xFF),
                 (byte)(value != 0 ? 0xFF : 0x00), 0x00
             };
             return SendRequest(0x05, addr, 0, payload, out _);

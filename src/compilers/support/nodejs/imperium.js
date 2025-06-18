@@ -60,6 +60,10 @@ export function newStatic(varname, Class){
 export function resolve(val) {
   return val instanceof RefVar ? val.value : val;
 }
+
+export function createReference(address){
+  return new RefVar(address);
+}
 export class RefVar {
   /**
    * 

@@ -181,6 +181,9 @@ export function run(){
         if(target === "nodejs"){
             jsCode += "\nsetup();\nrun();";
         }
+        if(target === "jint"){
+            jsCode = jsCode.replaceAll("export ", "").replaceAll("console.log", "log").replaceAll("console.error", "error");
+        }
         fs.mkdirSync(outputPath, { recursive: true });
         fs.writeFileSync(jsFile, jsCode);
         if(sourcePath.toLowerCase().endsWith(".iec") || sourcePath.toLowerCase().endsWith(".xml")){
@@ -213,11 +216,11 @@ export function run(){
             fs.cpSync(supportDir, outputPath, { recursive: true });
 
             // 2. Run the build script inside the output directory
-            const buildPath = path.join(outputPath, buildScript);
+            const buildPath = path.resolve(path.join(outputPath, buildScript));
             if(buildPath.endsWith(".sh")){
                 fs.chmodSync(buildPath, 0o755); // make executable
             }
-            execSync(buildPath, { cwd: outputPath, stdio: "inherit", shell: true });
+            execSync(buildPath, { cwd: path.resolve(outputPath), stdio: "inherit", shell: true });
 
             // 3. Copy the generated JS file to each publish folder
             const publishRoot = path.join(outputPath, "publish");

@@ -16,11 +16,11 @@ echo "Publishing ImperiumPLC for macOS..."
 dotnet publish ImperiumPLC/ImperiumPLC.csproj -c Release -r osx-x64 --self-contained true /p:PublishSingleFile=true /p:Trim=true -o publish/osx-x64
 cp "ImperiumPLC/bootstrap.sh" publish/osx-x64/bootstrap.sh
 
-echo Publishing ImperiumPLC for Raspberry Pi ARM 32-bit...
+echo Publishing ImperiumPLC for Linux ARM 32-bit...
 dotnet publish ImperiumPLC/ImperiumPLC.csproj -c Release -r linux-arm --self-contained true /p:PublishSingleFile=true /p:Trim=true -o publish/linux-arm
 cp "ImperiumPLC/bootstrap.sh" publish/linux-arm/bootstrap.sh
 
-echo Publishing ImperiumPLC for Raspberry Pi ARM 64-bit...
+echo Publishing ImperiumPLC for Linux ARM 64-bit...
 dotnet publish ImperiumPLC/ImperiumPLC.csproj -c Release -r linux-arm64 --self-contained true /p:PublishSingleFile=true /p:Trim=true -o publish/linux-arm64
 cp "ImperiumPLC/bootstrap.sh" publish/linux-arm64/bootstrap.sh
 

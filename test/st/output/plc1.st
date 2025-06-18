@@ -39,7 +39,5 @@ PROGRAM PLC_LD
     PLS1.IN := SW1;
 PLS1.PT := 1000;
 %QX0.0 := (PLS1.Q);
-%QX0.1 := ((NOT SW1));
-%QX0.2 := (((PLS1.ET >= 500)));
 
 END_PROGRAM

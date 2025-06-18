@@ -7,7 +7,7 @@
                     productName="Some PADT" productVersion="Edition1"
                     productRelease="2018"/>
                     <ContentHeader name="Test Project" version="1.0" creationDateTime="2017-06-14T09:00:00Z"
-                    modificationDateTime="1749850812225" organization="MTI" author="Nathan" language="En">
+                    modificationDateTime="1750261706877" organization="MTI" author="Nathan" language="En">
                 </ContentHeader>
                     <Types>
                     <GlobalNamespace>
@@ -114,92 +114,6 @@
                     
                     
                 </FbdObject>
-
-                </Rung>
-<Rung evaluationOrder="2">
-                    <LdObject xsi:type="LeftPowerRail" >
-                    <RelPosition x="2" y="131"/>
-                    <ConnectionPointOut connectionPointOutId="1">
-                    
-                </ConnectionPointOut>
-
-                </LdObject>
-<LdObject xsi:type="RightPowerRail" >
-                    <RelPosition x="800" y="131"/>
-                    <ConnectionPointIn>
-                    
-                    <Connection refConnectionPointOutId="3"/>
-
-                </ConnectionPointIn>
-
-                </LdObject>
-<LdObject xsi:type="Contact"  operand="SW1" edge="none" negated="true">
-                    <RelPosition x="50" y="131"/>
-                    <ConnectionPointIn>
-                    
-                    <Connection refConnectionPointOutId="1"/>
-
-                </ConnectionPointIn>
-<ConnectionPointOut connectionPointOutId="2">
-                    
-                </ConnectionPointOut>
-
-                </LdObject>
-<LdObject xsi:type="Coil"  operand="%QX0.1" edge="none" negated="false" latch="none">
-                    <RelPosition x="676.2055967712884" y="131"/>
-                    <ConnectionPointIn>
-                    
-                    <Connection refConnectionPointOutId="2"/>
-
-                </ConnectionPointIn>
-<ConnectionPointOut connectionPointOutId="3">
-                    
-                </ConnectionPointOut>
-
-                </LdObject>
-
-                </Rung>
-<Rung evaluationOrder="3">
-                    <LdObject xsi:type="LeftPowerRail" >
-                    <RelPosition x="2" y="185"/>
-                    <ConnectionPointOut connectionPointOutId="1">
-                    
-                </ConnectionPointOut>
-
-                </LdObject>
-<LdObject xsi:type="RightPowerRail" >
-                    <RelPosition x="800" y="185"/>
-                    <ConnectionPointIn>
-                    
-                    <Connection refConnectionPointOutId="3"/>
-
-                </ConnectionPointIn>
-
-                </LdObject>
-<LdObject xsi:type="CompareContact"  operand1="PLS1.ET" operand2="500" compareOperator=">=">
-                    <RelPosition x="50" y="185"/>
-                    <ConnectionPointIn>
-                    
-                    <Connection refConnectionPointOutId="1"/>
-
-                </ConnectionPointIn>
-<ConnectionPointOut connectionPointOutId="2">
-                    
-                </ConnectionPointOut>
-
-                </LdObject>
-<LdObject xsi:type="Coil"  operand="%QX0.2" edge="none" negated="false" latch="none">
-                    <RelPosition x="597.2338676993741" y="185"/>
-                    <ConnectionPointIn>
-                    
-                    <Connection refConnectionPointOutId="2"/>
-
-                </ConnectionPointIn>
-<ConnectionPointOut connectionPointOutId="3">
-                    
-                </ConnectionPointOut>
-
-                </LdObject>
 
                 </Rung>
 
