@@ -23,6 +23,7 @@
 #include <iostream>
 #include <map>
 #include "modbus.h"
+#include "opcua.h"
 
 uint64_t PROGRAM_COUNT = 0;
 uint64_t MEMORY[64][16] = { 0 };
@@ -382,6 +383,11 @@ std::unique_ptr<IOClient> createClient(IOMap& map){
    
     if(map.protocol == "MODBUS-TCP"){
         auto ret = std::make_unique<ModbusClient>();
+        ret->addMapping(map);
+        return ret;
+    }
+    else if(map.protocol == "OPCUA"){
+        auto ret = std::make_unique<OPCUAClient>();
         ret->addMapping(map);
         return ret;
     }

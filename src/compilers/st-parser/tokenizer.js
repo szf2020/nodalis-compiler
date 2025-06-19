@@ -14,6 +14,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+/**
+ * @description Structured Text Tokenizer
+ * @author Nathan Skipper, MTI
+ * @version 1.0.2
+ * @copyright Apache 2.0
+ */
+
+/**
+ * Tokenizes a block of structured text into their types and values.
+ * @param {string} code A block of structured text code.
+ * @returns {{type: string, value: string}[]} An array of tokens.
+ */
 export function tokenize(code) {
   const tokens = [];
   let match;

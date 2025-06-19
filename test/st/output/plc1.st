@@ -1,7 +1,7 @@
 
 //Map={\"ModuleID\":\"192.168.9.17\",\"ModulePort\":\"5502\",\"Protocol\":\"MODBUS-TCP\",\"RemoteAddress\":\"0\",\"RemoteSize\":\"1\",\"InternalAddress\":\"%IX0.0\",\"Resource\":\"PLC1\",\"PollTime\":\"500\",\"ProtocolProperties\":\"{}\"}
 //Map={\"ModuleID\":\"192.168.9.17\",\"ModulePort\":\"5502\",\"Protocol\":\"MODBUS-TCP\",\"RemoteAddress\":\"16\",\"RemoteSize\":\"1\",\"InternalAddress\":\"%QX0.0\",\"Resource\":\"PLC1\",\"PollTime\":\"500\",\"ProtocolProperties\":\"{}\"}
-//Map={\"ModuleID\":\"192.168.9.17\",\"ModulePort\":\"5502\",\"Protocol\":\"MODBUS-TCP\",\"RemoteAddress\":\"17\",\"RemoteSize\":\"1\",\"InternalAddress\":\"%QX0.1\",\"Resource\":\"PLC1\",\"PollTime\":\"500\",\"ProtocolProperties\":\"{}\"}
+//Map={\"ModuleID\":\"opc.tcp://localhost:4334/UA/imperium\",\"ModulePort\":\"0\",\"Protocol\":\"OPCUA\",\"RemoteAddress\":\"Input1\",\"RemoteSize\":\"1\",\"InternalAddress\":\"%IX0.1\",\"Resource\":\"PLC1\",\"PollTime\":\"1000\",\"ProtocolProperties\":\"{}\"}
 
 //Task={"Name":"T100", "Interval":"100", "Priority":"1"}
 
@@ -9,6 +9,7 @@
 
 VAR_GLOBAL
     SW1  AT %IX0.0 : BOOL;
+SW2  AT %IX0.1 : BOOL;
 
 END_VAR
 FUNCTION_BLOCK PLS
@@ -39,5 +40,6 @@ PROGRAM PLC_LD
     PLS1.IN := SW1;
 PLS1.PT := 1000;
 %QX0.0 := (PLS1.Q);
+%QX0.0 := ((SW2));
 
 END_PROGRAM

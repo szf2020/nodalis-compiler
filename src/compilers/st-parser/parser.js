@@ -14,9 +14,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+
+/**
+ * @description Structured Text Parser
+ * @author Nathan Skipper, MTI
+ * @version 1.0.2
+ * @copyright Apache 2.0
+ */
+
 import { tokenize } from './tokenizer.js';
 import {mapType} from "./gcctranspiler.js";
 
+/**
+ * Parses a block of structured text code and divides it into statement objects that can then be transpiled.
+ * @param {string} code A block of Structured Text Code
+ * @returns {[]} An array of tokenized and parsed statements.
+ */
 export function parseStructuredText(code) {
   const tokens = tokenize(code);
   let position = 0;

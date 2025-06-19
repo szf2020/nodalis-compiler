@@ -14,9 +14,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+
+/**
+ * @description ANSI CPP Transpiler
+ * @author Nathan Skipper, MTI
+ * @version 1.0.2
+ * @copyright Apache 2.0
+ */
+
 import { convertExpression } from './expressionConverter.js';
 import { getWriteAddressExpression } from './expressionConverter.js';
 
+/**
+ * Converts the tokenized ST code to ANSCII C++.
+ * @param {{body: {type: string, name: string, varSections: [], statements: []}}[]} ast The tokenized code.
+ * @returns {string} The transpiled code.
+ */
 export function transpile(ast) {
   const lines = [];
 
@@ -65,7 +78,11 @@ export function transpile(ast) {
 
   return lines.join('\n');
 }
-
+/**
+ * Converts a single statement to C++
+ * @param {{type: string, left: string, right: string, condition:string[], elseIfBlocks: [], elseBlock: [], body: []}} stmt The tokenized statement to convert.
+ * @returns {string} the converted statement.
+ */
 function mapStatement(stmt){
   try{
     switch (stmt.type) {
@@ -133,11 +150,20 @@ function mapStatement(stmt){
   return "// uncompilable statement " + JSON.stringify(stmt);
 }
 
+/**
+ * Transpiles an array of statements.
+ * @param {{type: string, left: string, right: string, condition:string[], elseIfBlocks: [], elseBlock: [], body: []}[]} statements The statements to transpile.
+ * @returns {string[]} Returns an array of transpiled statements.
+ */
 function transpileStatements(statements) {
   return statements?.flatMap(mapStatement);
 }
 
-
+/**
+ * Creates a transpiled section of declared variables.
+ * @param {{type: string, address: string, initialValue: string, sectionType: string}[]} varSections An array of variable tokens.
+ * @returns {string[]} An array of declaration statements.
+ */
 function declareVars(varSections) {
   return varSections.map(v => {
     var cleanedType = v.type.trim().toUpperCase();
@@ -160,7 +186,11 @@ function declareVars(varSections) {
   });
 }
 
-
+/**
+ * Maps a structured text type to a C++ type.
+ * @param {string} type The ST type to map
+ * @returns {string} Returns a string representing the C++ equivalent for the structured text type.
+ */
 export function mapType(type) {
   const types = {
     'BOOL': 'bool',
@@ -188,10 +218,19 @@ export function mapType(type) {
   return types[type.trim().toUpperCase()] || 'auto';
 }
 
+/**
+ * Determins whether the expression is an address reference with a bit selector.
+ * @param {string} expr The expression to evaluate.
+ * @returns Returns true if the expression has a bit selector.
+ */
 function isBitSelector(expr) {
   return typeof expr === 'string' && /^[A-Za-z_]\w*\.\d+$/.test(expr);
 }
-
+/**
+ * Determines whether the expression is an address reference.
+ * @param {string} expr The expression to evaluate.
+ * @returns Returns true if the expression is an address reference.
+ */
 function isIOAddress(expr) {
   return typeof expr === 'string' && /^%[IQM]/i.test(expr);
 }

@@ -1,8 +1,34 @@
 /* eslint-disable curly */
 /* eslint-disable eqeqeq */
+// Copyright [2025] Nathan Skipper
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+
+/**
+ * @description Javascript Transpiler
+ * @author Nathan Skipper, MTI
+ * @version 1.0.2
+ * @copyright Apache 2.0
+ */
 
 import { convertExpression, getWriteAddressExpression } from './expressionConverter.js';
 let fbVars = [];
+/**
+ * Converts the tokenized ST code to Javascript.
+ * @param {{body: {type: string, name: string, varSections: [], statements: []}}[]} ast The tokenized code.
+ * @returns {string} The transpiled code.
+ */
 export function transpile(ast) {
   const lines = [];
 
@@ -49,6 +75,11 @@ export function transpile(ast) {
   return lines.join('\n');
 }
 
+/**
+ * Converts a single statement to Javascript
+ * @param {{type: string, left: string, right: string, condition:string[], elseIfBlocks: [], elseBlock: [], body: []}} stmt The tokenized statement to convert.
+ * @returns {string} the converted statement.
+ */
 function mapStatement(stmt, infb = false) {
   try {
     switch (stmt.type) {
@@ -138,10 +169,20 @@ function mapStatement(stmt, infb = false) {
   }
 }
 
+/**
+ * Transpiles an array of statements.
+ * @param {{type: string, left: string, right: string, condition:string[], elseIfBlocks: [], elseBlock: [], body: []}[]} statements The statements to transpile.
+ * @returns {string[]} Returns an array of transpiled statements.
+ */
 function transpileStatements(statements, infb=false) {
   return statements?.flatMap((stmt) => mapStatement(stmt, infb));
 }
 
+/**
+ * Creates a transpiled section of declared variables.
+ * @param {{type: string, address: string, initialValue: string, sectionType: string}[]} varSections An array of variable tokens.
+ * @returns {string[]} An array of declaration statements.
+ */
 function declareVars(varSections, infb = false, blockName = "") {
   if(infb){
     fbVars = [];
@@ -165,10 +206,20 @@ function declareVars(varSections, infb = false, blockName = "") {
   });
 }
 
+/**
+ * Determines whether the expression is an address reference.
+ * @param {string} expr The expression to evaluate.
+ * @returns Returns true if the expression is an address reference.
+ */
 function isIOAddress(expr) {
   return typeof expr === 'string' && /^%[IQM]/i.test(expr);
 }
 
+/**
+ * Determins whether the expression is an address reference with a bit selector.
+ * @param {string} expr The expression to evaluate.
+ * @returns Returns true if the expression has a bit selector.
+ */
 function isBitSelector(expr) {
   return typeof expr === 'string' && /^[A-Za-z_]\w*\.\d+$/.test(expr);
 }

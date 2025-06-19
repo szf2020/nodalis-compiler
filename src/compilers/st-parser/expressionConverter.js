@@ -15,6 +15,20 @@
 // limitations under the License.
 
 
+/**
+ * @description Expression Converter
+ * @author Nathan Skipper, MTI
+ * @version 1.0.2
+ * @copyright Apache 2.0
+ */
+
+/**
+ * Converts an ST expression to be more understable to JS and C++
+ * @param {Array | string} expr An array of tokens or a string representing the expression.
+ * @param {boolean} isjsfb Expresses whether this expression is within a JS function block.
+ * @param {string[]} jsfbVars An array of variable names defined in the JS function block.
+ * @returns {string} Returns a converted expression.
+ */
 export function convertExpression(expr, isjsfb = false, jsfbVars = []) {
   if (Array.isArray(expr)) {
     if (!isjsfb) {

@@ -38,6 +38,10 @@ using json = nlohmann::json;
 #pragma region "Program Timing"
 extern uint64_t PROGRAM_COUNT;
 extern std::chrono::steady_clock::time_point PROGRAM_START;
+/**
+ * Provides the number of milliseconds since the program started.
+ * @returns Returns a ulong of the elapsed time, in milliseconds.
+ */
 uint64_t elapsed();
 #pragma endregion
 #pragma region "Memory Handling"
@@ -76,6 +80,11 @@ enum MEMORY_SPACE : int {
     M, //Virtual memory space
 };
 
+/**
+ * Parses a ST address reference into a vector with the memory space, type, byte index, and bit broken out.
+ * @param address A string representing the ST address.
+ * @returns Returns a vector with four elements: the memory space (Input, Output, or Virtual), the width in bits, the address index, and the bit.
+ */
 inline std::vector<int> parseAddress(const std::string& address) {
     std::regex pattern(R"(%([IQM])([XBWDL])(\d+)(?:\.(\d+))?)", std::regex::icase);
     std::smatch match;
@@ -236,6 +245,7 @@ bool getBit(void* var, int bit);
  */
 void setBit(void* var, int bit, bool value);
 #pragma endregion
+#pragma region "Reference Handling"
 
 /**
  * The RefVar class provides a means of declaring a variable with a reference to memory, similar to a pointer.
@@ -342,7 +352,8 @@ void setBit(RefVar<T>& var, int bit, bool value){
     setBit(&ref, bit, value);
     var = ref;
 }
-
+#pragma endregion
+#pragma region "IO Handling"
 /**
  * Handles the aquisition of IO inputs and the application of IO outputs.
  */
@@ -354,27 +365,71 @@ enum class IOType {
     Output
 };
 
-// Describes a mapping between a remote I/O address and a local IEC address
+/**
+ * Defines a single mapping between a remote IO module address and an internal address in the PLC.
+ */
 class IOMap {
 public:
+    /**
+     * The direction of the IO interface.
+     */
     IOType direction;
+    /**
+     * The unique identifier of the module. This can be the IP address or a unit ID.
+     */
     std::string moduleID;
+    /**
+     * The port for the module communications port. In TCP/IP coms, this is the TCP port. In serial, this is the serial port.
+     */
     std::string modulePort;
+    /**
+     * The name of the protocol for this map.
+     */
     std::string protocol;
+    /**
+     * Additional properties, as defined by the protocol.
+     */
     json additionalProperties;
+    /**
+     * The remote address, as it is understood by the protocol.
+     */
     std::string remoteAddress;  // e.g. "40001"
+    /**
+     * The local address, which is a memory address reference.
+     */
     std::string localAddress;   // e.g. "%MW1"
+    /**
+     * The bit of the address.
+     */
     int bit = -1;               // Optional bit index
+    /**
+     * The width of the input to read from the remote and store in the address.
+     */
     int width = 16;             // 8, 16, or 32
+    /**
+     * The interval at which the module should be polled for this address.
+     */
     int interval = 500;
+    /**
+     * The last time the module was polled, in Milliseconds.
+     */
     uint64_t lastPoll = 0;
+    /**
+     * Constructs a new IOMap object based on a string of JSON.
+     * @param A string of JSON properties.
+     */
     IOMap(std::string mapJson);
     IOMap();
 };
 
-// Abstract base class for a remote I/O client
+/**
+ * The IOClient is an abstract class implemented by all protocol clients that will be used in Imperium.
+ */
 class IOClient {
 public:
+    /**
+    * Indicates whether the IOClient is connected to its remote module.
+    */
     bool connected;
     IOClient(const std::string& protocol);
     virtual ~IOClient() = default;
@@ -412,7 +467,7 @@ std::unique_ptr<IOClient> createClient(IOMap& map);
 
 void mapIO(std::string map);
 
-
+#pragma endregion
 
 #pragma region "Standard Function Blocks"
 

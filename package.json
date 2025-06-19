@@ -37,6 +37,7 @@
   },
   "dependencies": {
     "jsmodbus": "^4.0.10",
+    "node-opcua": "^2.156.0",
     "which": "^5.0.0",
     "xmldom": "^0.6.0"
   }

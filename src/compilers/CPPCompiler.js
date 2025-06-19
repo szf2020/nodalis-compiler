@@ -185,7 +185,11 @@ int main() {
             'imperium.cpp',
             'modbus.h',
             'modbus.cpp',
-            "json.hpp"
+            "json.hpp",
+            "opcua.h",
+            "opcua.cpp",
+            "open62541.h",
+            "open62541.c"
         ];
 
         const coreDir = path.resolve('./src/compilers/support/generic');
@@ -193,47 +197,62 @@ int main() {
             fs.copyFileSync(path.join(coreDir, file), path.join(outputPath, file));
         }
 
-       if (outputType === 'executable') {
-        let compiler = null;
-        const isWindows = os.platform() === 'win32';
+       const pathTo = name => path.join(outputPath, name);
 
-        // Step 1: Detect compiler
-        try {
-            execSync('clang++ --version', { stdio: 'ignore' });
-            compiler = 'clang++';
-        } catch {
+        if (outputType === 'executable') {
+            let compiler = null;
+            const isWindows = os.platform() === 'win32';
+
+            // Step 1: Detect compilers
             try {
-            execSync('g++ --version', { stdio: 'ignore' });
-            compiler = 'g++';
+                execSync('clang++ --version', { stdio: 'ignore' });
+                compiler = 'clang++';
             } catch {
-            try {
-                execSync('cl.exe /?', { stdio: 'ignore' });
-                compiler = 'cl.exe';
-            } catch {
-                throw new Error('No C++ compiler found (clang++, g++, or cl.exe)');
+                try {
+                    execSync('g++ --version', { stdio: 'ignore' });
+                    compiler = 'g++';
+                } catch {
+                    try {
+                        execSync('cl.exe /?', { stdio: 'ignore' });
+                        compiler = 'cl.exe';
+                    } catch {
+                        throw new Error('No C++ compiler found (clang++, g++, or cl.exe)');
+                    }
+                }
             }
+
+            // Step 2: Compile open62541.c with C compiler
+            const cCompiler = compiler === 'cl.exe' ? 'cl.exe' : compiler.replace('++', '');
+            const open62541c = pathTo('open62541.c');
+            const open62541o = pathTo('open62541.o');
+
+            let cCompileCmd;
+            if (compiler === 'cl.exe') {
+                // Compile C file with cl
+                cCompileCmd = `cl.exe /c /TC "${open62541c}" /Fo"${pathTo('open62541.obj')}"`;
+            } else {
+                cCompileCmd = `${cCompiler} -std=c11 -D_DEFAULT_SOURCE -D_BSD_SOURCE -c "${open62541c}" -o "${open62541o}"`;
+
             }
-        }
 
-        // Step 2: Determine output file name
-        let exeFile = path.join(outputPath, filename);
-        if (isWindows && !exeFile.endsWith('.exe')) {
-            exeFile += '.exe';
-        }
+            execSync(cCompileCmd, { stdio: 'inherit' });
 
-        // Step 3: Build compile command
-        let compileCmd;
+            // Step 3: Compile C++ files with C++ compiler and link object
+            let exeFile = path.join(outputPath, filename);
+            if (isWindows && !exeFile.endsWith('.exe')) {
+                exeFile += '.exe';
+            }
 
-        if (compiler === 'cl.exe') {
-            // cl.exe syntax
-            compileCmd = `"cl.exe" /EHsc /std:c++17 /Fe:"${exeFile}" "${cppFile}" "${path.join(outputPath, 'imperium.cpp')}" "${path.join(outputPath, 'modbus.cpp')}"`;
-        } else {
-            // g++ or clang++ syntax
-            compileCmd = `${compiler} -std=c++17 -o "${exeFile}" "${cppFile}" "${path.join(outputPath, 'imperium.cpp')}" "${path.join(outputPath, 'modbus.cpp')}"`;
-        }
+            let cppCompileCmd;
+            if (compiler === 'cl.exe') {
+                cppCompileCmd = `cl.exe /EHsc /std:c++17 /Fe:"${exeFile}" ` +
+                    `"${cppFile}" "${pathTo('imperium.cpp')}" "${pathTo('modbus.cpp')}" "${pathTo('opcua.cpp')}" "${pathTo('open62541.obj')}"`;
+            } else {
+                cppCompileCmd = `${compiler} -std=c++17 -o "${exeFile}" ` +
+                    `"${cppFile}" "${pathTo('imperium.cpp')}" "${pathTo('modbus.cpp')}" "${pathTo('opcua.cpp')}" "${open62541o}"`;
+            }
 
-        // Step 4: Execute compile command
-        execSync(compileCmd, { stdio: 'inherit' });
+            execSync(cppCompileCmd, { stdio: 'inherit' });
         }
     }
 

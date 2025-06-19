@@ -7,7 +7,7 @@
                     productName="Some PADT" productVersion="Edition1"
                     productRelease="2018"/>
                     <ContentHeader name="Test Project" version="1.0" creationDateTime="2017-06-14T09:00:00Z"
-                    modificationDateTime="1750261706877" organization="MTI" author="Nathan" language="En">
+                    modificationDateTime="1750362848839" organization="MTI" author="Nathan" language="En">
                 </ContentHeader>
                     <Types>
                     <GlobalNamespace>
@@ -114,6 +114,49 @@
                     
                     
                 </FbdObject>
+
+                </Rung>
+<Rung evaluationOrder="2">
+                    <LdObject xsi:type="LeftPowerRail" >
+                    <RelPosition x="2" y="131"/>
+                    <ConnectionPointOut connectionPointOutId="1">
+                    
+                </ConnectionPointOut>
+
+                </LdObject>
+<LdObject xsi:type="RightPowerRail" >
+                    <RelPosition x="800" y="131"/>
+                    <ConnectionPointIn>
+                    
+                    <Connection refConnectionPointOutId="3"/>
+
+                </ConnectionPointIn>
+
+                </LdObject>
+<LdObject xsi:type="Contact"  operand="SW2" edge="none" negated="false">
+                    <RelPosition x="50" y="131"/>
+                    <ConnectionPointIn>
+                    
+                    <Connection refConnectionPointOutId="1"/>
+
+                </ConnectionPointIn>
+<ConnectionPointOut connectionPointOutId="2">
+                    
+                </ConnectionPointOut>
+
+                </LdObject>
+<LdObject xsi:type="Coil"  operand="%QX0.0" edge="none" negated="false" latch="none">
+                    <RelPosition x="504.4908271613661" y="131"/>
+                    <ConnectionPointIn>
+                    
+                    <Connection refConnectionPointOutId="2"/>
+
+                </ConnectionPointIn>
+<ConnectionPointOut connectionPointOutId="3">
+                    
+                </ConnectionPointOut>
+
+                </LdObject>
 
                 </Rung>
 
@@ -268,6 +311,12 @@
                 </Type>
                     <Address location="I" size="X" address="0.0"></Address>
                 </Variable>
+<Variable name="SW2" orderWithinParamSet="">
+                    <Type>
+                    <TypeName>BOOL</TypeName>
+                </Type>
+                    <Address location="I" size="X" address="0.1"></Address>
+                </Variable>
 
         </GlobalVars>
                     <Task xsi:type="StandardTask" name="T100" interval="100" priority="1"/>
@@ -282,7 +331,7 @@
                     <MappingTable>
                     <Map ModuleID="192.168.9.17" ModulePort="5502" Protocol="MODBUS-TCP" RemoteAddress="0" RemoteSize="1" InternalAddress="%IX0.0" Resource="PLC1" PollTime="500" ProtocolProperties="{}"></Map>
 <Map ModuleID="192.168.9.17" ModulePort="5502" Protocol="MODBUS-TCP" RemoteAddress="16" RemoteSize="1" InternalAddress="%QX0.0" Resource="PLC1" PollTime="500" ProtocolProperties="{}"></Map>
-<Map ModuleID="192.168.9.17" ModulePort="5502" Protocol="MODBUS-TCP" RemoteAddress="17" RemoteSize="1" InternalAddress="%QX0.1" Resource="PLC1" PollTime="500" ProtocolProperties="{}"></Map>
+<Map ModuleID="opc.tcp://localhost:4334/UA/imperium" ModulePort="0" Protocol="OPCUA" RemoteAddress="Input1" RemoteSize="1" InternalAddress="%IX0.1" Resource="PLC1" PollTime="1000" ProtocolProperties="{}"></Map>
 
                 </MappingTable>
                 </Project>

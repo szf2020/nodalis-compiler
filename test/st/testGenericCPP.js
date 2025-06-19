@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { GenericCPPCompiler } from '../../src/compilers/GenericCPPCompiler.js';
+import { CPPCompiler } from '../../src/compilers/CPPCompiler.js';
 
 var fixtureName = 'plc';
 var inputPath = path.resolve('test/st/fixtures', `${fixtureName}.st`);
@@ -15,7 +15,7 @@ function runTest() {
   // Clean output dir
   fs.rmSync(outputPath, { recursive: true, force: true });
 
-  var compiler = new GenericCPPCompiler({
+  var compiler = new CPPCompiler({
     sourcePath: inputPath,
     outputPath,
     target: 'code',
@@ -42,18 +42,12 @@ function runTest() {
   fixtureName = "plc1";
   inputPath = path.resolve('test/st/fixtures', `${fixtureName}.iec`);
   expectedPath = path.resolve('test/st/fixtures', `${fixtureName}.cpp`);
-  compiler = new GenericCPPCompiler({
-    sourcePath: inputPath,
-    outputPath,
-    target: 'code',
-    resourceName: "PLC1"
-  });
-  compiler.compile();
 
-  compiler = new GenericCPPCompiler({
+  compiler = new CPPCompiler({
     sourcePath: inputPath,
     outputPath,
-    target: 'executable',
+    target: 'generic',
+    outputType: "executable",
     resourceName: "PLC1"
   });
   compiler.compile();

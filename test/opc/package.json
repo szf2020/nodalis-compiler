@@ -1,0 +1,13 @@
+{
+  "name": "opcserver",
+  "version": "1.0.0",
+  "description": "OPC Server Tester",
+  "license": "ISC",
+  "author": "Nathan Skipper",
+  "type": "commonjs",
+  "main": "opcserver.js",
+  "scripts": {
+    "test": "node opcserver.js",
+    "testclient": "node opcclient.js"
+  }
+}
