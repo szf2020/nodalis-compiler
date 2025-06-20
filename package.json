@@ -2,6 +2,7 @@
   "name": "imperium-compiler",
   "version": "1.0.0",
   "description": "Compiles IEC-61131-3/10 languages into code that can be used as a PLC on multiple platforms.",
+  "icon": "imperium.png",
   "main": "src/imperium.js",
   "type": "module",
   "scripts": {
