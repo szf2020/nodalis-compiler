@@ -38,7 +38,7 @@ export class CPPCompiler extends Compiler {
     }
 
     get supportedTargetDevices() {
-        return ['linux', 'macOS', 'windows'];
+        return ['linux', 'macos', 'windows'];
     }
 
     get supportedProtocols() {
