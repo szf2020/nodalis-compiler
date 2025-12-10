@@ -24,6 +24,7 @@ import { CPPCompiler } from './compilers/CPPCompiler.js';
 import { JSCompiler } from './compilers/JSCompiler.js';
 import { SkipCompiler } from "./compilers/SkipCompiler.js";
 import { MTIProgrammer } from "./programmers/MTIProgrammer.js";
+import { CompileList } from "mticp-npm"
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -58,6 +59,8 @@ function validateFileExtension(language, sourcePath) {
     throw new Error(`Unknown language: ${language}`);
   }
 }
+
+export const MTICompileList = CompileList;
 
 export class Nodalis {
   constructor() {
