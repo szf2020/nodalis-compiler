@@ -22,7 +22,8 @@ import { fileURLToPath } from 'url';
 // Updated compiler imports
 import { CPPCompiler } from './compilers/CPPCompiler.js';
 import { JSCompiler } from './compilers/JSCompiler.js';
-import { SkipCompiler } from "./compilers/SkipCompiler.js"
+import { SkipCompiler } from "./compilers/SkipCompiler.js";
+import { MTIProgrammer } from "./programmers/MTIProgrammer.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -31,6 +32,10 @@ const availableCompilers = [
   new CPPCompiler(),
   new JSCompiler(),
   new SkipCompiler()
+];
+
+const availableProgrammers = [
+  new MTIProgrammer()
 ];
 
 function validateFileExtension(language, sourcePath) {
@@ -57,6 +62,7 @@ function validateFileExtension(language, sourcePath) {
 export class Nodalis {
   constructor() {
     this.compilers = availableCompilers;
+    this.programmers = availableProgrammers;
   }
 
   listCompilers() {
@@ -70,11 +76,24 @@ export class Nodalis {
     }));
   }
 
+  listProgrammers() {
+    return this.programmers.map(p => ({
+      name: p.name,
+      target: p.target
+    }));
+  }
+
   getCompiler(target, outputType, language) {
     return this.compilers.find(c =>
       c.supportedTargetDevices.includes(target) &&
       c.supportedOutputTypes.includes(outputType) &&
       c.supportedLanguages.includes(language.toUpperCase())
+    );
+  }
+
+  getProgrammer(target) {
+    return this.programmers.find(p =>
+      p.target === target
     );
   }
 
@@ -97,6 +116,23 @@ export class Nodalis {
 
     await compiler.compile();
   }
+
+  async program({ target, source, destination, username, password }) {
+    const programmer = this.getProgrammer(target);
+    if (!programmer) {
+      throw new Error(`No programmer found for target ${target}.`);
+    }
+    programmer.options = {
+      source,
+      destination,
+      username,
+      password
+    }
+    if (await programmer.program() === false) {
+      throw new Error(`Failed to program ${target} ${destination}`);
+    }
+  }
+
 }
 
 // === CLI Entry Point ===
@@ -119,6 +155,13 @@ Actions:
         --resourceName  Resource name (used for .iec projects)
         --sourcePath    Path to source file (.st or .iec)
         --language      st (Structured Text) or ld (Ladder Diagram)
+
+  --action deploy  Programs a device based on a protocol.
+    --target        The device/protocol targeted for programming.
+    --source    The path to the file or folder to use for programming.
+    --destination   The destination of the target device.
+    --username      The username for programming the device, if needed.
+    --password      The password for programming the device, if needed.
 
 Examples:
   node nodalis.js --action list-compilers
@@ -169,7 +212,17 @@ Examples:
     }
 
     case 'deploy': {
-      console.log(`Deploy action is not yet implemented.`);
+      app.program({
+        target: argMap.target,
+        source: argMap.source,
+        destination: argMap.destination,
+        username: argMap.username,
+        password: argMap.password
+      }).then(() => {
+        console.log('Deployment completed.');
+      }).catch(err => {
+        console.error(`Deployment failed: ${err.message}`);
+      });
       break;
     }
 

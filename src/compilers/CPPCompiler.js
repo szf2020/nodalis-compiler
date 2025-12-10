@@ -49,7 +49,7 @@ export class CPPCompiler extends Compiler {
         return '1.0.0';
     }
 
-    compile() {
+    async compile() {
         const { sourcePath, outputPath, target, outputType, resourceName } = this.options;
         var sourceCode = fs.readFileSync(sourcePath, 'utf-8');
         const filename = path.basename(sourcePath, path.extname(sourcePath));
