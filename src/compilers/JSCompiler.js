@@ -174,7 +174,7 @@ export class JSCompiler extends Compiler {
 `${includes}
 ${transpiledCode}
 ${target === "nodejs" ? `let opcServer = new OPCServer();`: ""}
-export async function setup(){
+${taskCode !== "" ? `export async function setup(){
     ${mapCode}
 
     ${target === "nodejs" ? "opcServer.setReadWriteHandlers(readAddress, writeAddress);\n" + `await opcServer.start();\n` + globals.join("\n") : ""}
@@ -186,7 +186,7 @@ export function run(){
     ${taskCode}
     
 }
-`;
+` : ""}`;
         if(target === "nodejs"){
             jsCode += "\nsetup();\nrun();";
         }
