@@ -15,6 +15,7 @@
 // limitations under the License.
 
 
+
 /**
  * @description Expression Converter
  * @author Nathan Skipper, MTI
@@ -72,7 +73,7 @@ export function convertExpression(expr, isjsfb = false, jsfbVars = [], isjs=fals
   results = tokens.join(' ');
   // Replace %I/Q/M references
   const parts = results.split(/\s+/);
-  results = parts.map(e => {
+  results = parts.map((e, index, tks) => {
     // Don't touch raw address reads
     if (/^%[IQM][XBWDL]?\d+(\.\d+)?$/i.test(e)) return getReadAddressExpression(e);
 
@@ -84,7 +85,8 @@ export function convertExpression(expr, isjsfb = false, jsfbVars = [], isjs=fals
 
     // Don't wrap dot-bit references already processed
     if (/^&?[A-Za-z_]\w*\.\d+$/.test(e)) return e;
-
+    // token is a function call
+    if (tks.length > index && tks[index + 1] === "(") return e;
     // Otherwise, wrap in resolve()
     if(isjs)
       return `resolve(${e})`;

@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),  
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.6]
+
+- Fixed issue with JS compile where program was not compiling exactly right.
+- Integrated latest version of mticp-npm.
+
 ## [1.0.5]
 
 - Changed JSCompiler to avoid including the setup and run functions if we are just compiling generic ST.

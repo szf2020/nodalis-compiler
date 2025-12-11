@@ -42,7 +42,7 @@ export function transpile(ast) {
 
       case 'ProgramDeclaration':
         lines.push(`export function ${block.name}() { // PROGRAM:${block.name}`);
-        lines.push(...declareVars(block.varSections),false, block.name);
+        lines.push(...declareVars(block.varSections, false, block.name));
         lines.push(...transpileStatements(block.statements));
         lines.push('}');
         break;

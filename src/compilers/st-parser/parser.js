@@ -304,12 +304,13 @@ function parseStatementsUntil(endTokens) {
     while (peek() && peek().value.toUpperCase().startsWith('VAR')) {
       vars.push(...parseVarSection());
     }
+
+    stmts.push(...parseStatements('END_PROGRAM'));
     vars.forEach((v) => {
-      if(mapType(v.type) === "auto"){
-        stmts.push({type: "CALL", name: v.name});
+      if (mapType(v.type) === "auto") {
+        stmts.push({ type: "CALL", name: v.name });
       }
     });
-    stmts.push(...parseStatements('END_PROGRAM'));
     expect('END_PROGRAM');
 
     return { type: 'ProgramDeclaration', name, varSections: vars, statements: stmts };
@@ -326,12 +327,13 @@ function parseStatementsUntil(endTokens) {
     while (peek() && peek().value.toUpperCase().startsWith('VAR')) {
       vars.push(...parseVarSection());
     }
+
+    stmts.push(...parseStatements('END_FUNCTION'));
     vars.forEach((v) => {
-      if(mapType(v.type) === "auto"){
-        stmts.push({type: "CALL", name: v.name});
+      if (mapType(v.type) === "auto") {
+        stmts.push({ type: "CALL", name: v.name });
       }
     });
-    stmts.push(...parseStatements('END_FUNCTION'));
     expect('END_FUNCTION');
 
     return { type: 'FunctionDeclaration', name, returnType, varSections: vars, statements: stmts };
@@ -346,12 +348,13 @@ function parseStatementsUntil(endTokens) {
     while (peek() && peek().value.toUpperCase().startsWith('VAR')) {
       vars.push(...parseVarSection());
     }
+
+    stmts.push(...parseStatements('END_FUNCTION_BLOCK'));
     vars.forEach((v) => {
-      if(mapType(v.type) === "auto"){
-        stmts.push({type: "CALL", name: v.name});
+      if (mapType(v.type) === "auto") {
+        stmts.push({ type: "CALL", name: v.name });
       }
     });
-    stmts.push(...parseStatements('END_FUNCTION_BLOCK'));
     expect('END_FUNCTION_BLOCK');
 
     return { type: 'FunctionBlockDeclaration', name, varSections: vars, statements: stmts };
