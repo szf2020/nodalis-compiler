@@ -1,0 +1,1 @@
+dotnet build -c Release && dotnet pack ./NodalisEngine.csproj -c Release
