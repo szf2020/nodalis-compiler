@@ -27,6 +27,7 @@ using Jint.Native.Object;
 using Jint.Native.Function;
 using Jint.Runtime.Interop;
 using Jint.Runtime;
+using Jint.Runtime.Descriptors;
 namespace Nodalis
 {
     /// <summary>
@@ -624,7 +625,9 @@ namespace Nodalis
             JsEngine.SetValue("log", new Action<string>(Console.WriteLine));
             JsEngine.SetValue("error", new Action<string>(Console.Error.WriteLine));
 
-            JsEngine.SetValue("getBit", new ClrFunctionInstance(JsEngine, "getBit", (thisObj, args) =>
+            var funcFlags = PropertyFlag.Configurable | PropertyFlag.Writable;
+
+            JsEngine.SetValue("getBit", new ClrFunction(JsEngine, "getBit", (thisObj, args) =>
             {
                 if (args[0].IsObject())
                 {
@@ -648,9 +651,9 @@ namespace Nodalis
                     var bit = (int)args[1].AsNumber();
                     return GetBit(value, bit);
                 }
-            }));
+            }, 2, funcFlags));
 
-            JsEngine.SetValue("setBit", new ClrFunctionInstance(JsEngine, "setBit", (thisObj, args) =>
+            JsEngine.SetValue("setBit", new ClrFunction(JsEngine, "setBit", (thisObj, args) =>
             {
                 if (args[0].ToObject() is RefVar<bool> refVar)
                 {
@@ -674,12 +677,12 @@ namespace Nodalis
                     SetBit(ref value, bit, state);
                     return JsValue.FromObject(JsEngine, value);
                 }
-            }));
+            }, 3, funcFlags));
 
             JsEngine.SetValue("createReference", new Func<string, object>(CreateReference));
 
 
-            JsEngine.SetValue("newStatic", new ClrFunctionInstance(JsEngine, "newStatic", (thisObj, args) =>
+            JsEngine.SetValue("newStatic", new ClrFunction(JsEngine, "newStatic", (thisObj, args) =>
             {
                 var key = args[0].AsString();
                 var jsCtor = args[1];
@@ -692,9 +695,9 @@ namespace Nodalis
                 }
 
                 return (JsValue)_staticStore[key];
-            }));
+            }, 2, funcFlags));
 
-            JsEngine.SetValue("resolve", new ClrFunctionInstance(JsEngine, "resolve", (thisObj, args) =>
+            JsEngine.SetValue("resolve", new ClrFunction(JsEngine, "resolve", (thisObj, args) =>
             {
                 var val = args[0].ToObject();
                 if (val != null && val.GetType().IsGenericType &&
@@ -704,7 +707,7 @@ namespace Nodalis
                     return JsValue.FromObject(JsEngine, valueProp.GetValue(val));
                 }
                 return args[0];
-            }));
+            }, 1, funcFlags));
 
             var types = new[] {
                 typeof(TON), typeof(TOF), typeof(TP), typeof(AND), typeof(OR), typeof(NOT), typeof(XOR),

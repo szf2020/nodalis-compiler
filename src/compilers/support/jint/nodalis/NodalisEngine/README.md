@@ -7,7 +7,7 @@
 - **Extensible IO abstraction** – implement just a few read/write methods in your host application.
 - **Built-in protocol clients** for Modbus TCP and OPC UA plus hooks for custom transports.
 - **Integrated IEC function blocks** (TON, TOF, TP, counters, logic gates, etc.).
-- **NuGet-friendly** metadata so the library can be consumed from any `netstandard2.0` or higher application.
+- **NuGet-friendly** metadata so the library can be consumed from any `net8.0` or higher application.
 
 ## Installation
 Use your preferred NuGet workflow:
@@ -20,7 +20,7 @@ dotnet add package NodalisEngine
 Install-Package NodalisEngine
 ```
 
-`NodalisEngine` currently targets `netstandard2.0`, which means it works on .NET Framework 4.6.1+, .NET Core 2.0+, .NET 5+, and Mono/Xamarin/MAUI workloads.
+`NodalisEngine` currently targets `net8.0`.
 
 ## Getting Started
 Create a host application that derives from `NodalisEngine` and wires the abstract IO operations to your hardware or simulator:
