@@ -22,6 +22,11 @@ import { Compiler, IECLanguage, OutputType, CommunicationProtocol } from './Comp
 import * as iec from "./iec-parser/parser.js";
 import { parseStructuredText } from './st-parser/parser.js';
 import { transpile } from './st-parser/gcctranspiler.js';
+import { fileURLToPath } from 'node:url';
+import { dirname } from 'node:path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 export class CPPCompiler extends Compiler {
     constructor(options) {
@@ -203,7 +208,7 @@ int main() {
             "open62541.c"
         ];
 
-        const coreDir = path.resolve('./src/compilers/support/generic');
+        const coreDir = path.resolve(__dirname + '/support/generic');
         for (const file of coreFiles) {
             fs.copyFileSync(path.join(coreDir, file), path.join(outputPath, file));
         }

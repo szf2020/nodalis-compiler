@@ -24,6 +24,7 @@ import { transpile } from './st-parser/jstranspiler.js';
 import which from "which";
 import { fileURLToPath } from "url";
 
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -207,7 +208,7 @@ export function run(){
                 "opcua.js"
             ];
 
-            let coreDir = path.resolve('./src/compilers/support/nodejs');
+            let coreDir = path.resolve(__dirname + '/support/nodejs');
             
             for (const file of coreFiles) {
                 fs.copyFileSync(path.join(coreDir, file), path.join(outputPath, file));

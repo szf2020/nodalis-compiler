@@ -41,6 +41,7 @@ const availableProgrammers = [
 
 function validateFileExtension(language, sourcePath) {
   const ext = path.extname(sourcePath).toLowerCase();
+  language = language.toLowerCase();
   if (language === 'st') {
     if (ext !== '.st' && ext !== '.iec') {
       throw new Error(`Invalid file extension for language 'st'. Expected '.st' or '.iec', got '${ext}'`);
