@@ -52,6 +52,20 @@ function runTest() {
   });
   compiler.compile();
 
+  inputPath = path.resolve('test/st/fixtures', `PLC-1.st`);
+  outputPath += "/linux";
+  compiler = new CPPCompiler({
+    sourcePath: inputPath,
+    outputPath,
+    target: 'linux',
+    outputType: "executable",
+    resourceName: "MainResource"
+  });
+
+
+
+  compiler.compile();
+
 }
 
 runTest();

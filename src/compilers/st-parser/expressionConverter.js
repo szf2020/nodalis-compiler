@@ -92,11 +92,11 @@ export function convertExpression(expr, isjsfb = false, jsfbVars = [], isjs=fals
       return `resolve(${e})`;
     else return e;
   }).join(' ');
-  if (results.indexOf("read") === -1) {
-    results = results.replace(/\b(?!%)(([A-Za-z_]\w*)\.(\d+))\b/g, (_, full, base, bit) => {
+  //if (results.indexOf("read") === -1) {
+  results = results.replace(/\b(?<!%)(([A-Za-z_]\w*)\.(\d+))\b/g, (_, full, base, bit) => {
       return `getBit(&${base}, ${bit})`;
     });
-  }
+  //}
   
   return results;
 }

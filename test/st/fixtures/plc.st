@@ -16,11 +16,11 @@ PROGRAM PLC_PROG
         T1: Timer;
         IN: ULINT;
     END_VAR
-    IN := %I0001.0;
+    IN := %IL1.0;
     IF T1.Start = TRUE AND NOT T1.Done THEN
-        %Q0001.0 := 1;
+        %QL1.0 := 1 AND IN.0 AND %QL1.1;
     ELSIF T1.Done = TRUE THEN
         T1.Start := FALSE;
-        %Q0001.0 := 0;
+        %QL1.0 := 0;
     END_IF;
 END_PROGRAM

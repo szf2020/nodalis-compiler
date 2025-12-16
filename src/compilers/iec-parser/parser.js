@@ -2535,12 +2535,12 @@ export class LdObject extends Serializable{
                     }
                     else if(this.Latch === "set"){
                         st = `IF (${expression}) THEN
-                            ${this.Operand} + " := 1;"
+                            ${this.Operand} := 1;"
                         END_IF;`;
                     }
                     else if(this.Latch === "reset"){
                         st = `IF (${expression}) THEN
-                            ${this.Operand} + " := 0;"
+                            ${this.Operand} := 0;"
                         END_IF;`;
                     }
                     

@@ -7,7 +7,7 @@
                     productName="Some PADT" productVersion="Edition1"
                     productRelease="2018"/>
                     <ContentHeader name="Test Project" version="1.0" creationDateTime="2017-06-14T09:00:00Z"
-                    modificationDateTime="1750370731662" organization="MTI" author="Nathan" language="En">
+                    modificationDateTime="1765903294470" organization="MTI" author="Nathan" language="En">
                 </ContentHeader>
                     <Types>
                     <GlobalNamespace>
@@ -20,6 +20,12 @@
                     <Variable name="PLS1" orderWithinParamSet="">
                     <Type>
                     <TypeName>TP</TypeName>
+                </Type>
+                    undefined
+                </Variable>
+<Variable name="IL" orderWithinParamSet="">
+                    <Type>
+                    <TypeName>ULINT</TypeName>
                 </Type>
                     undefined
                 </Variable>
@@ -59,8 +65,8 @@
                     <RelPosition x="704.3217293451951" y="2.000000000000007"/>
                     <ConnectionPointIn>
                     
-                    <Connection refConnectionPointOutId="11"/>
-<Connection refConnectionPointOutId="13"/>
+                    <Connection refConnectionPointOutId="13"/>
+<Connection refConnectionPointOutId="14"/>
 
                 </ConnectionPointIn>
 <ConnectionPointOut connectionPointOutId="7">
@@ -83,7 +89,7 @@
 
                 </FbdObject>
 <FbdObject xsi:type="Block" identifier="PLS1" typeName="TP" instanceName="PLS1">
-                    <RelPosition x="213.01615473242958" y="4.4037017731939"/>
+                    <RelPosition x="196.03698825961365" y="13.207714018357718"/>
                     <InputVariables>
                     <InputVariable parameterName="IN" negated="false">
                     <ConnectionPointIn>
@@ -115,7 +121,7 @@
                     
                     
                 </FbdObject>
-<LdObject xsi:type="Contact"  operand="SW2" edge="none" negated="false">
+<LdObject xsi:type="Contact"  operand="%IX1.0" edge="none" negated="false" latch="none">
                     <RelPosition x="115.22776515019059" y="109.7676119872714"/>
                     <ConnectionPointIn>
                     
@@ -123,6 +129,18 @@
 
                 </ConnectionPointIn>
 <ConnectionPointOut connectionPointOutId="13">
+                    
+                </ConnectionPointOut>
+
+                </LdObject>
+<LdObject xsi:type="Contact"  operand="IL.0" edge="none" negated="false" latch="none">
+                    <RelPosition x="575.4290087558504" y="44.65061489394275"/>
+                    <ConnectionPointIn>
+                    
+                    <Connection refConnectionPointOutId="11"/>
+
+                </ConnectionPointIn>
+<ConnectionPointOut connectionPointOutId="14">
                     
                 </ConnectionPointOut>
 
