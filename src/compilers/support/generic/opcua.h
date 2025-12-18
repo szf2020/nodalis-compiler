@@ -1,6 +1,11 @@
 #pragma once
 #include "nodalis.h"
-#include "open62541.h"
+#if defined(_WIN32)
+#include "open62541/src/win32/open62541.h"
+#else
+#include "open62541/src/posix/open62541.h"
+#endif
+
 #include <thread>
 #include <atomic>
 

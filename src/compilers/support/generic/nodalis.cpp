@@ -23,6 +23,7 @@
 #include <map>
 #include "modbus.h"
 #include "opcua.h"
+#include "bacnet.h"
 
 uint64_t PROGRAM_COUNT = 0;
 uint64_t MEMORY[64][16] = { 0 };
@@ -321,6 +322,7 @@ void IOClient::addMapping(const IOMap& map) {
         }
         std::cout << "Adding map for " << map.moduleID.c_str() << ":" << map.modulePort.c_str() << "->" << map.localAddress.c_str() << "\n";
         mappings.push_back(map);
+        onMappingAdded(mappings.back());
     }
 }
 
@@ -442,6 +444,11 @@ std::unique_ptr<IOClient> createClient(IOMap& map){
     }
     else if(map.protocol == "OPCUA"){
         auto ret = std::make_unique<OPCUAClient>();
+        ret->addMapping(map);
+        return ret;
+    }
+    else if(map.protocol == "BACNET" || map.protocol == "BACNET-IP"){
+        auto ret = std::make_unique<BACNETClient>();
         ret->addMapping(map);
         return ret;
     }

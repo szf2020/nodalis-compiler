@@ -503,6 +503,7 @@ protected:
     virtual bool readLWord(const std::string &remote, uint64_t &result) = 0;
     virtual bool writeLWord(const std::string &remote, uint64_t value) = 0;
     virtual void connect() = 0;
+    virtual void onMappingAdded(const IOMap& map) { (void)map; }
 };
 
 extern std::vector<std::unique_ptr<IOClient>> Clients;

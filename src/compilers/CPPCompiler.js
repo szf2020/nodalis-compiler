@@ -232,6 +232,8 @@ int main() {
             'nodalis.cpp',
             'modbus.h',
             'modbus.cpp',
+            'bacnet.h',
+            'bacnet.cpp',
             "json.hpp"
         ];
 
@@ -297,7 +299,8 @@ int main() {
                 `"${cppFile}"`,
                 `"${pathTo('nodalis.cpp')}"`,
                 `"${pathTo('modbus.cpp')}"`,
-                `"${pathTo('opcua.cpp')}"`
+                `"${pathTo('opcua.cpp')}"`,
+                `"${pathTo('bacnet.cpp')}"`
             ];
 
             if (!isWindowsTarget) inputs.push(`"${open62541o}"`);
@@ -305,7 +308,7 @@ int main() {
             if (compiler === 'cl.exe') {
                 const cppFlagSegment = formatFlags(archFlags.cpp);
                 cppCompileCmd = `cl.exe ${cppFlagSegment}/EHsc /std:c++17 /Fe:"${exeFile}" ` +
-                    `"${cppFile}" "${pathTo('nodalis.cpp')}" "${pathTo('modbus.cpp')}" "${pathTo('opcua.cpp')}"`; //"${pathTo('open62541.obj')}"`;
+                    `"${cppFile}" "${pathTo('nodalis.cpp')}" "${pathTo('modbus.cpp')}" "${pathTo('opcua.cpp')}" "${pathTo('bacnet.cpp')}"`; //"${pathTo('open62541.obj')}"`;
             } else {
                 const cppFlagSegment = formatFlags(archFlags.cpp);
                 cppCompileCmd = `${compiler} ${cppFlagSegment}-std=c++17 -o "${exeFile}" ${inputs.join(' ')} ${archFlags.linker}`;
