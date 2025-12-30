@@ -27,48 +27,51 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
-#if defined(_WIN32)
-extern "C" {
-#include "bacnet-stack/windows-x64/include/bacnet/config.h"
-#include "bacnet-stack/windows-x64/include/bacnet/apdu.h"
-#include "bacnet-stack/windows-x64/include/bacnet/bacapp.h"
-#include "bacnet-stack/windows-x64/include/bacnet/bacdef.h"
-#include "bacnet-stack/windows-x64/include/bacnet/bacenum.h"
-#include "bacnet-stack/windows-x64/include/bacnet/bacdcode.h"
-#include "bacnet-stack/windows-x64/include/bacnet/npdu.h"
-#include "bacnet-stack/windows-x64/include/bacnet/rp.h"
-#include "bacnet-stack/windows-x64/include/bacnet/wp.h"
-#include "bacnet-stack/windows-x64/include/bacnet/datalink/datalink.h"
-#include "bacnet-stack/windows-x64/include/bacnet/datalink/dlenv.h"
-#include "bacnet-stack/windows-x64/include/bacnet/datalink/bip.h"
-#include "bacnet-stack/windows-x64/include/bacnet/address.h"
-#include "bacnet-stack/windows-x64/include/bacnet/basic/tsm/tsm.h"
-}
-#else
+
 extern "C"
 {
-#include "bacnet-stack/linux-x64/include/bacnet/config.h"
-#include "bacnet-stack/linux-x64/include/bacnet/apdu.h"
-#include "bacnet-stack/linux-x64/include/bacnet/bacapp.h"
-#include "bacnet-stack/linux-x64/include/bacnet/bacdef.h"
-#include "bacnet-stack/linux-x64/include/bacnet/bacenum.h"
-#include "bacnet-stack/linux-x64/include/bacnet/bacdcode.h"
-#include "bacnet-stack/linux-x64/include/bacnet/npdu.h"
-#include "bacnet-stack/linux-x64/include/bacnet/rp.h"
-#include "bacnet-stack/linux-x64/include/bacnet/wp.h"
-#include "bacnet-stack/linux-x64/include/bacnet/datalink/datalink.h"
-#include "bacnet-stack/linux-x64/include/bacnet/datalink/dlenv.h"
-#include "bacnet-stack/linux-x64/include/bacnet/datalink/bip.h"
-#include "bacnet-stack/linux-x64/include/bacnet/address.h"
-#include "bacnet-stack/linux-x64/include/bacnet/basic/tsm/tsm.h"
+#include "bacnet/config.h"
+#include "bacnet/apdu.h"
+#include "bacnet/bacapp.h"
+#include "bacnet/bacdef.h"
+#include "bacnet/bacenum.h"
+#include "bacnet/bacdcode.h"
+#include "bacnet/npdu.h"
+#include "bacnet/rp.h"
+#include "bacnet/wp.h"
+#include "bacnet/datalink/bip.h"
+#include "bacnet/datalink/datalink.h"
+#include "bacnet/bacaddr.h"
+#include "bacnet/basic/binding/address.h"
+#include "bacnet/basic/tsm/tsm.h"
 }
-#endif
 
-struct BACnetRemotePoint {
+double uint64_to_double(uint64_t value)
+{
+    uint32_t fractional = static_cast<uint32_t>(value & 0xFFFFFFFFULL);
+    int32_t integer = static_cast<int32_t>(value >> 32);
+
+    double result = static_cast<double>(integer);
+    result += static_cast<double>(fractional) / 4294967296.0;
+
+    return result;
+}
+
+enum IO_DIRECTION : uint8_t
+{
+    OUTPUT = 0,
+    INPUT = 1,
+    IO = 2
+}
+
+struct BACnetRemotePoint
+{
     BACNET_OBJECT_TYPE objectType = OBJECT_ANALOG_INPUT;
     uint32_t objectInstance = 0;
     BACNET_PROPERTY_ID propertyId = PROP_PRESENT_VALUE;
     BACNET_ARRAY_INDEX arrayIndex = BACNET_ARRAY_ALL;
+    uint8_t valueType = BACNET_APPLICATION_TAG_ENUMERATED;
+    uint8_t direction = 0;
 };
 
 class BACNETClient : public IOClient {
@@ -102,14 +105,14 @@ private:
     bool parseStringRemote(const std::string& definition, BACnetRemotePoint& point) const;
     BACNET_OBJECT_TYPE parseObjectType(const std::string& raw) const;
     BACNET_PROPERTY_ID parsePropertyId(const std::string& raw) const;
+    uint8_t parseValueType(const std::string &raw) const;
 
-    bool performRead(const BACnetRemotePoint& point, BACNET_APPLICATION_DATA_VALUE& value);
+    bool performRead(const BACnetRemotePoint &point, BACNET_APPLICATION_DATA_VALUE &value);
     bool performWrite(const BACnetRemotePoint& point, const BACNET_APPLICATION_DATA_VALUE& value);
 
     template<typename T>
     bool decodeNumeric(const BACNET_APPLICATION_DATA_VALUE& value, T& result);
-    bool encodeValueFromWidth(int width, uint64_t raw, BACNET_APPLICATION_DATA_VALUE& value);
-    bool encodeBoolean(bool state, BACNET_APPLICATION_DATA_VALUE& value);
+    bool encodeValue(uint64_t raw, BACnetRemotePoint point, BACNET_APPLICATION_DATA_VALUE &value);
 
     std::unordered_map<std::string, BACnetRemotePoint> remoteCache;
     std::string remoteIp;

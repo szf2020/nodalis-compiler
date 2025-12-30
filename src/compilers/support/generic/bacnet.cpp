@@ -75,7 +75,6 @@ BACNETClient::BACNETClient(const std::string& ip, uint16_t port)
 BACNETClient::~BACNETClient() {
     if (datalinkReady) {
         datalink_cleanup();
-        dlenv_terminate();
 #ifdef _WIN32
         WSACleanup();
 #endif
@@ -129,9 +128,10 @@ bool BACNETClient::ensureDatalink() {
         return false;
     }
 #endif
-    dlenv_init();
+    char ifname[] = "0.0.0.0";
+    datalink_init(ifname);
     address_init();
-    tsm_init();
+    // tsm_init();
     datalinkReady = true;
     return true;
 }
@@ -179,29 +179,22 @@ bool BACNETClient::resolveRemote(const std::string& remote, BACnetRemotePoint& p
     return false;
 }
 
-bool BACNETClient::parseRemoteDefinition(const IOMap& map, BACnetRemotePoint& point) {
-    try {
-        if (!map.additionalProperties.empty() && map.additionalProperties[0] == '{') {
-            json config = json::parse(map.additionalProperties);
-            if (parseJsonRemote(config, point)) {
-                return true;
-            }
-        }
-    } catch (const std::exception&) {
-        // Fall through to other parsing attempts
+bool BACNETClient::parseRemoteDefinition(const IOMap &map, BACnetRemotePoint &point)
+{
+    json config = nullptr;
+    if (map.additionalProperties.is_string())
+    {
+        config = json::parse(map.additionalProperties.get<std::string>());
+    }
+    else
+    {
+        config = map.additionalProperties;
+    }
+    if (parseJsonRemote(config, point))
+    {
+        return true;
     }
 
-    if (!map.remoteAddress.empty()) {
-        if (parseStringRemote(map.remoteAddress, point)) {
-            return true;
-        }
-    }
-
-    if (!map.additionalProperties.is_null()) {
-        if (parseJsonRemote(map.additionalProperties, point)) {
-            return true;
-        }
-    }
     return false;
 }
 
@@ -228,99 +221,104 @@ bool BACNETClient::parseJsonRemote(const json& config, BACnetRemotePoint& point)
         point.propertyId = parsePropertyId(*propertyToken);
     }
 
+    auto valueTypeToken = extractString(config, "valueType");
+    if (!valueTypeToken)
+    {
+        valueTypeToken = extractString(config, "ValueType");
+    }
+    if (valueTypeToken)
+    {
+        point.valueType = parseValueType(*valueTypeToken);
+    }
+
     int32_t arrayIndex = point.arrayIndex;
     if (extractNumber(config, "arrayIndex", arrayIndex) ||
-        extractNumber(config, "ArrayIndex", arrayIndex)) {
+        extractNumber(config, "ArrayIndex", arrayIndex))
+    {
         point.arrayIndex = arrayIndex;
     }
 
     return true;
 }
 
-bool BACNETClient::parseStringRemote(const std::string& definition, BACnetRemotePoint& point) const {
+bool BACNETClient::parseStringRemote(const std::string &definition, BACnetRemotePoint &point) const
+{
     std::vector<std::string> tokens;
     std::string current;
-    for (char ch : definition) {
-        if (ch == ':' || ch == '|') {
-            if (!current.empty()) {
+    for (char ch : definition)
+    {
+        if (ch == ':' || ch == '|')
+        {
+            if (!current.empty())
+            {
                 tokens.push_back(current);
                 current.clear();
             }
-        } else {
+        }
+        else
+        {
             current.push_back(ch);
         }
     }
-    if (!current.empty()) {
+    if (!current.empty())
+    {
         tokens.push_back(current);
     }
 
-    if (tokens.size() < 3) {
+    if (tokens.size() < 3)
+    {
         return false;
     }
 
     point.objectType = parseObjectType(tokens[0]);
     point.objectInstance = static_cast<uint32_t>(std::stoul(tokens[1]));
     point.propertyId = parsePropertyId(tokens[2]);
-    if (tokens.size() > 3) {
+    if (tokens.size() > 3)
+    {
         point.arrayIndex = static_cast<int32_t>(std::stol(tokens[3]));
     }
     return true;
 }
 
-BACNET_OBJECT_TYPE BACNETClient::parseObjectType(const std::string& raw) const {
-    std::string key = normalizeKey(raw);
-    if (key.empty()) {
-        return OBJECT_ANALOG_INPUT;
-    }
-
-    static const std::unordered_map<std::string, BACNET_OBJECT_TYPE> lookup = {
-        {"analoginput", OBJECT_ANALOG_INPUT},
-        {"analogoutput", OBJECT_ANALOG_OUTPUT},
-        {"analogvalue", OBJECT_ANALOG_VALUE},
-        {"binaryinput", OBJECT_BINARY_INPUT},
-        {"binaryoutput", OBJECT_BINARY_OUTPUT},
-        {"binaryvalue", OBJECT_BINARY_VALUE},
-        {"multistateinput", OBJECT_MULTI_STATE_INPUT},
-        {"multistateoutput", OBJECT_MULTI_STATE_OUTPUT},
-        {"multistatevalue", OBJECT_MULTI_STATE_VALUE},
-        {"device", OBJECT_DEVICE}
-    };
-
-    auto it = lookup.find(key);
-    if (it != lookup.end()) {
-        return it->second;
-    }
-    if (std::all_of(key.begin(), key.end(), ::isdigit)) {
-        return static_cast<BACNET_OBJECT_TYPE>(std::stoi(key));
-    }
-    return OBJECT_ANALOG_INPUT;
+BACNET_OBJECT_TYPE BACNETClient::parseObjectType(const std::string &raw) const
+{
+    return static_cast<BACNET_OBJECT_TYPE>(std::stoi(raw));
 }
 
-BACNET_PROPERTY_ID BACNETClient::parsePropertyId(const std::string& raw) const {
-    std::string key = normalizeKey(raw);
-    if (key.empty()) {
-        return PROP_PRESENT_VALUE;
-    }
+BACNET_PROPERTY_ID BACNETClient::parsePropertyId(const std::string &raw) const
+{
 
-    static const std::unordered_map<std::string, BACNET_PROPERTY_ID> lookup = {
-        {"presentvalue", PROP_PRESENT_VALUE},
-        {"statusflags", PROP_STATUS_FLAGS},
-        {"outofservice", PROP_OUT_OF_SERVICE},
-        {"priorityarray", PROP_PRIORITY_ARRAY},
-        {"units", PROP_UNITS}
-    };
-
-    auto it = lookup.find(key);
-    if (it != lookup.end()) {
-        return it->second;
-    }
-    if (std::all_of(key.begin(), key.end(), ::isdigit)) {
-        return static_cast<BACNET_PROPERTY_ID>(std::stoi(key));
-    }
-    return PROP_PRESENT_VALUE;
+    return static_cast<BACNET_PROPERTY_ID>(std::stoi(key));
 }
 
-bool BACNETClient::performRead(const BACnetRemotePoint& point, BACNET_APPLICATION_DATA_VALUE& value) {
+uint8_t BACNETClient::parseValueType(const std::string &raw) const
+{
+    uint8_t result = BACNET_APPLICATION_TAG_ENUMERATED;
+    if (raw == "i")
+    {
+        result = BACNET_APPLICATION_TAG_SIGNED_INT;
+    }
+    else if (raw == "u")
+    {
+        result = BACNET_APPLICATION_TAG_UNSIGNED_INT;
+    }
+    else if (raw == "d")
+    {
+        result = BACNET_APPLICATION_TAG_DOUBLE;
+    }
+    else if (raw == "b")
+    {
+        result = BACNET_APPLICATION_TAG_BOOLEAN;
+    }
+    else if (raw == "f")
+    {
+        result = BACNET_APPLICATION_TAG_REAL;
+    }
+    return result;
+}
+
+bool BACNETClient::performRead(const BACnetRemotePoint &point, BACNET_APPLICATION_DATA_VALUE &value)
+{
     if (!ensureDatalink()) {
         return false;
     }
@@ -416,8 +414,9 @@ bool BACNETClient::performWrite(const BACnetRemotePoint& point, const BACNET_APP
     if (appLen <= 0) {
         return false;
     }
-    request.application_data = app.data();
     request.application_data_len = appLen;
+    std::memcpy(request.application_data, app.data(),
+                static_cast<size_t>(appLen));
 
     uint8_t invoke = nextInvokeId();
     pduLen += wp_encode_apdu(buffer.data() + pduLen, invoke, &request);
@@ -479,7 +478,8 @@ bool BACNETClient::writeBit(const std::string& remote, int value) {
         return false;
     }
     BACNET_APPLICATION_DATA_VALUE app{};
-    if (!encodeBoolean(value != 0, app)) {
+    if (!encodeValue(value, point, app))
+    {
         return false;
     }
     return performWrite(point, app);
@@ -508,7 +508,8 @@ bool BACNETClient::writeByte(const std::string& remote, uint8_t value) {
         return false;
     }
     BACNET_APPLICATION_DATA_VALUE app{};
-    if (!encodeValueFromWidth(8, value, app)) {
+    if (!encodeValue(value, point, app))
+    {
         return false;
     }
     return performWrite(point, app);
@@ -537,7 +538,8 @@ bool BACNETClient::writeWord(const std::string& remote, uint16_t value) {
         return false;
     }
     BACNET_APPLICATION_DATA_VALUE app{};
-    if (!encodeValueFromWidth(16, value, app)) {
+    if (!encodeValue(value, point, app))
+    {
         return false;
     }
     return performWrite(point, app);
@@ -566,7 +568,8 @@ bool BACNETClient::writeDWord(const std::string& remote, uint32_t value) {
         return false;
     }
     BACNET_APPLICATION_DATA_VALUE app{};
-    if (!encodeValueFromWidth(32, value, app)) {
+    if (!encodeValue(value, point, app))
+    {
         return false;
     }
     return performWrite(point, app);
@@ -595,37 +598,37 @@ bool BACNETClient::writeLWord(const std::string& remote, uint64_t value) {
         return false;
     }
     BACNET_APPLICATION_DATA_VALUE app{};
-    if (!encodeValueFromWidth(64, value, app)) {
+    if (!encodeValue(value, point, app))
+    {
         return false;
     }
     return performWrite(point, app);
 }
 
-bool BACNETClient::encodeValueFromWidth(int width, uint64_t raw, BACNET_APPLICATION_DATA_VALUE& value) {
-    switch (width) {
-        case 8:
-            value.tag = BACNET_APPLICATION_TAG_UNSIGNED_INT;
-            value.type.Unsigned_Int = static_cast<uint32_t>(raw & 0xFF);
-            return true;
-        case 16:
-            value.tag = BACNET_APPLICATION_TAG_UNSIGNED_INT;
-            value.type.Unsigned_Int = static_cast<uint32_t>(raw & 0xFFFF);
-            return true;
-        case 32:
-            value.tag = BACNET_APPLICATION_TAG_UNSIGNED_INT;
-            value.type.Unsigned_Int = static_cast<uint32_t>(raw & 0xFFFFFFFF);
-            return true;
-        case 64:
-            value.tag = BACNET_APPLICATION_TAG_UNSIGNED_INT;
-            value.type.Unsigned_Int = static_cast<uint32_t>(raw & 0xFFFFFFFF);
-            return true;
-        default:
-            return false;
+bool BACNETClient::encodeValue(uint64_t raw, BACnetRemotePoint point, BACNET_APPLICATION_DATA_VALUE &value)
+{
+    value.tag = point.valueType;
+    switch (point.valueType)
+    {
+    case BACNET_APPLICATION_TAG_ENUMERATED:
+        value.type.Enumerated = static_cast<uint32_t>(raw & 0xFFFFFFFF);
+        return true;
+    case BACNET_APPLICATION_TAG_REAL:
+        value.type.Real = static_cast<float>(uint64_to_double(raw));
+        return true;
+    case BACNET_APPLICATION_TAG_UNSIGNED_INT:
+        value.type.Unsigned_Int = static_cast<uint32_t>(raw & 0xFFFFFFFF);
+        return true;
+    case BACNET_APPLICATION_TAG_SIGNED_INT:
+        value.type.Signed_Int = static_cast<int32_t>(raw & 0xFFFFFFFF);
+        return true;
+    case BACNET_APPLICATION_TAG_DOUBLE:
+        value.type.Double = static_cast<double>(uint64_to_double(raw));
+        return true;
+    case BACNET_APPLICATION_TAG_BOOLEAN:
+        value.type.Boolean = raw > 0;
+        return true;
+    default:
+        return false;
     }
-}
-
-bool BACNETClient::encodeBoolean(bool state, BACNET_APPLICATION_DATA_VALUE& value) {
-    value.tag = BACNET_APPLICATION_TAG_BOOLEAN;
-    value.type.Boolean = state;
-    return true;
 }

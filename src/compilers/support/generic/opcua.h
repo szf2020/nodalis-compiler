@@ -5,7 +5,13 @@
 #else
 #include "open62541/src/posix/open62541.h"
 #endif
+#ifdef OUT
+#undef OUT
+#endif
 
+#ifdef IN
+#undef IN
+#endif
 #include <thread>
 #include <atomic>
 

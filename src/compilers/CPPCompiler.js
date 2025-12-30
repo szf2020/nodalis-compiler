@@ -237,20 +237,22 @@ int main() {
             "json.hpp"
         ];
 
-        if (!target.includes("windows")) {
-            coreFiles.push(...["opcua.h",
-                "opcua.cpp", "open62541.h",
-                "open62541.c"]);
-        }
-        else {
-            coreFiles.push(...["opcua.h",
-                "opcua.cpp"]);
-        }
+        // if (!target.includes("windows")) {
+        //     coreFiles.push(...["opcua.h",
+        //         "opcua.cpp", "open62541.h",
+        //         "open62541.c"]);
+        // }
+        // else {
+        //     coreFiles.push(...["opcua.h",
+        //         "opcua.cpp"]);
+        // }
 
         const coreDir = path.resolve(__dirname + '/support/generic');
-        for (const file of coreFiles) {
-            fs.copyFileSync(path.join(target.includes("windows") && file.includes("opc") ? coreDir + "/windows/" : coreDir, file), path.join(outputPath, file));
-        }
+        fs.cpSync(coreDir, outputPath, {force: true, recursive: true});
+        // for (const file of coreFiles) {
+            
+        //     fs.copyFileSync(path.join(target.includes("windows") && file.includes("opc") ? coreDir + "/windows/" : coreDir, file), path.join(outputPath, file));
+        // }
 
        const pathTo = name => path.join(outputPath, name);
         const targetInfo = this.resolveTarget(target);
@@ -264,29 +266,30 @@ int main() {
             // }
 
             const compiler = this.detectCompiler(hostOs, hostArch, targetInfo.os, targetInfo.arch);
-            const cCompiler = this.getCCompilerBinary(compiler);
+            //const cCompiler = this.getCCompilerBinary(compiler);
             const archFlags = this.getArchFlags(targetInfo.os, targetInfo.arch, compiler);
             const formatFlags = (flags = []) => (flags.length ? `${flags.join(' ')} ` : '');
             const isWindowsTarget = targetInfo.os === 'windows';
 
             // Step 2: Compile open62541.c with C compiler
-            const open62541c = pathTo('open62541.c');
-            const open62541o = pathTo('open62541.o');
-
-            let cCompileCmd = "";
+            //const open62541c = pathTo('open62541.c');
+            const open62541o = pathTo(path.join("open62541", "lib", target, isWindowsTarget ? "open62541.lib" : 'open62541.o'));
+            const bacneta = pathTo(path.join("bacnet-stack", target, "libbacnet.a"));
+            const bacneti = pathTo(path.join("bacnet-stack", target, "include"));
+            //let cCompileCmd = "";
             // if (compiler === 'cl.exe') {
             //     // Compile C file with cl
             //     const cFlagSegment = formatFlags(archFlags.c);
             //     cCompileCmd = `cl.exe ${cFlagSegment}/c /TC "${open62541c}" /Fo"${pathTo('open62541.obj')}"`;
             // } else {
-            if (!isWindowsTarget) {
-                const cFlagSegment = formatFlags(archFlags.c);
+            // if (!isWindowsTarget) {
+            //     const cFlagSegment = formatFlags(archFlags.c);
 
-                cCompileCmd = `${cCompiler} ${cFlagSegment}-std=c11 -D_DEFAULT_SOURCE -D_BSD_SOURCE -c "${open62541c}" -o "${open62541o}"`;
+            //     cCompileCmd = `${cCompiler} ${cFlagSegment}-std=c11 -D_DEFAULT_SOURCE -D_BSD_SOURCE -c "${open62541c}" -o "${open62541o}"`;
 
-            }
+            // }
 
-            if (cCompileCmd !== "") execSync(cCompileCmd, { stdio: 'inherit' });
+            // if (cCompileCmd !== "") execSync(cCompileCmd, { stdio: 'inherit' });
 
             // Step 3: Compile C++ files with C++ compiler and link object
             let exeFile = path.join(outputPath, filename);
@@ -303,15 +306,16 @@ int main() {
                 `"${pathTo('bacnet.cpp')}"`
             ];
 
-            if (!isWindowsTarget) inputs.push(`"${open62541o}"`);
+            inputs.push(`"${open62541o}"`);
+            inputs.push(`"${bacneta}"`);
 
             if (compiler === 'cl.exe') {
                 const cppFlagSegment = formatFlags(archFlags.cpp);
-                cppCompileCmd = `cl.exe ${cppFlagSegment}/EHsc /std:c++17 /Fe:"${exeFile}" ` +
+                cppCompileCmd = `cl.exe /I${bacneti} /I${bacneti}/ports/${isWindowsTarget ? "win32" : "linux"} ${cppFlagSegment}/EHsc /std:c++17 /Fe:"${exeFile}" ` +
                     `"${cppFile}" "${pathTo('nodalis.cpp')}" "${pathTo('modbus.cpp')}" "${pathTo('opcua.cpp')}" "${pathTo('bacnet.cpp')}"`; //"${pathTo('open62541.obj')}"`;
             } else {
                 const cppFlagSegment = formatFlags(archFlags.cpp);
-                cppCompileCmd = `${compiler} ${cppFlagSegment}-std=c++17 -o "${exeFile}" ${inputs.join(' ')} ${archFlags.linker}`;
+                cppCompileCmd = `${compiler} ${cppFlagSegment}-std=c++17 -I${bacneti} -I${bacneti}/ports/${isWindowsTarget ? "win32" : "linux"} -o "${exeFile}" ${inputs.join(' ')} ${archFlags.linker}`;
             }
 
             execSync(cppCompileCmd, { stdio: 'inherit' });
@@ -446,8 +450,8 @@ int main() {
         };
 
         let linker = {
-            "windows-x64": " -lws2_32 -lcrypt32 -lwsock32 -lole32",
-            "windows-arm64": " -lws2_32 -lcrypt32 -lwsock32 -lole32",
+            "windows-x64": " -lws2_32 -lcrypt32 -lwsock32 -lole32 -liphlpapi",
+            "windows-arm64": " -lws2_32 -lcrypt32 -lwsock32 -lole32 -liphlpapi",
             "linux-x64": "",
             "linux-arm64": "",
             "linux-arm": "",
