@@ -46,7 +46,7 @@ extern "C"
 #include "bacnet/basic/tsm/tsm.h"
 }
 
-double uint64_to_double(uint64_t value)
+inline double uint64_to_double(uint64_t value)
 {
     uint32_t fractional = static_cast<uint32_t>(value & 0xFFFFFFFFULL);
     int32_t integer = static_cast<int32_t>(value >> 32);
@@ -57,11 +57,54 @@ double uint64_to_double(uint64_t value)
     return result;
 }
 
-enum IO_DIRECTION : uint8_t
+inline uint64_t double_to_uint64(double x)
 {
-    OUTPUT = 0,
-    INPUT = 1,
-    IO = 2
+
+    if (!std::isfinite(x))
+    {
+        return 0;
+    }
+
+    // Clamp to the representable range of int32 + fraction in [0,1).
+    // Max representable is INT32_MAX + (1 - 2^-32)
+    const double minVal = static_cast<double>(INT32_MIN);
+    const double maxVal = static_cast<double>(INT32_MAX) +
+                          (1.0 - 1.0 / 4294967296.0);
+
+    if (x < minVal)
+        x = minVal;
+    if (x > maxVal)
+        x = maxVal;
+
+    // Use floor so fractional is always in [0,1), even for negative numbers.
+    // Example: x = -1.25 -> integer = -2, frac = 0.75 (this will round-trip correctly)
+    double intPartD = std::floor(x);
+    double fracD = x - intPartD; // in [0,1)
+
+    int32_t integer = static_cast<int32_t>(intPartD);
+
+    // Scale fractional to 32-bit.
+    // Round to nearest to reduce error; clamp to avoid 2^32 on edge cases.
+    double scaled = fracD * 4294967296.0; // 2^32
+    uint64_t frac = static_cast<uint64_t>(std::llround(scaled));
+
+    if (frac >= 4294967296ULL)
+    {
+        // Carry into integer if rounding pushed us over (rare, but possible).
+        frac = 0;
+        if (integer < INT32_MAX)
+        {
+            ++integer;
+        }
+        else
+        {
+            // Already at max; saturate
+            frac = 0xFFFFFFFFULL;
+        }
+    }
+
+    uint64_t uInt = static_cast<uint32_t>(integer); // preserve bit pattern for negative int32_t
+    return (uInt << 32) | (frac & 0xFFFFFFFFULL);
 }
 
 struct BACnetRemotePoint
@@ -123,26 +166,33 @@ private:
 
 template<typename T>
 bool BACNETClient::decodeNumeric(const BACNET_APPLICATION_DATA_VALUE& value, T& result) {
-    switch (value.tag) {
-        case BACNET_APPLICATION_TAG_BOOLEAN:
-            result = static_cast<T>(value.type.Boolean ? 1 : 0);
-            return true;
-        case BACNET_APPLICATION_TAG_UNSIGNED_INT:
-            result = static_cast<T>(value.type.Unsigned_Int);
-            return true;
-        case BACNET_APPLICATION_TAG_SIGNED_INT:
-            result = static_cast<T>(value.type.Signed_Int);
-            return true;
-        case BACNET_APPLICATION_TAG_ENUMERATED:
-            result = static_cast<T>(value.type.Enumerated);
-            return true;
-        case BACNET_APPLICATION_TAG_REAL:
-            result = static_cast<T>(value.type.Real);
-            return true;
-        case BACNET_APPLICATION_TAG_DOUBLE:
-            result = static_cast<T>(value.type.Double);
-            return true;
-        default:
-            return false;
+    double rf;
+    uint64_t uf;
+    switch (value.tag)
+    {
+    case BACNET_APPLICATION_TAG_BOOLEAN:
+        result = static_cast<T>(value.type.Boolean ? 1 : 0);
+        return true;
+    case BACNET_APPLICATION_TAG_UNSIGNED_INT:
+        result = static_cast<T>(value.type.Unsigned_Int);
+        return true;
+    case BACNET_APPLICATION_TAG_SIGNED_INT:
+        result = static_cast<T>(value.type.Signed_Int);
+        return true;
+    case BACNET_APPLICATION_TAG_ENUMERATED:
+        result = static_cast<T>(value.type.Enumerated);
+        return true;
+    case BACNET_APPLICATION_TAG_REAL:
+        rf = (double)value.type.Real;
+        uf = double_to_uint64(rf);
+        result = static_cast<T>(uf);
+        return true;
+    case BACNET_APPLICATION_TAG_DOUBLE:
+        rf = value.type.Double;
+        uf = double_to_uint64(rf);
+        result = static_cast<T>(uf);
+        return true;
+    default:
+        return false;
     }
 }

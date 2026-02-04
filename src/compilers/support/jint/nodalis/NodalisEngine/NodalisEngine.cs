@@ -443,6 +443,11 @@ namespace Nodalis
             IOClient client = null;
             if (map.protocol == "MODBUS-TCP")
                 client = new ModbusClient();
+            else if (map.protocol.Equals("BACNET", StringComparison.InvariantCultureIgnoreCase)
+                  || map.protocol.Equals("BACNET/IP", StringComparison.InvariantCultureIgnoreCase)
+                  || map.protocol.Equals("BACNETIP", StringComparison.InvariantCultureIgnoreCase)
+                  || map.protocol.Equals("BACNET-UDP", StringComparison.InvariantCultureIgnoreCase))
+                client = new BacnetIpClient();
             else if (map.protocol == "OPCUA")
                 client = new OPCClient();
             if (client != null)

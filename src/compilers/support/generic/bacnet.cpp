@@ -99,8 +99,17 @@ void BACNETClient::connect() {
     if (remoteIp.empty()) {
         return;
     }
+    std::cout << "BACNET-IP attempting to connect to " << remoteIp.c_str() << ":" << remotePort << "\n";
 
     connected = ensureDatalink();
+    if (connected)
+    {
+        std::cout << "BACNET-IP successfully connected to " << remoteIp.c_str() << ":" << remotePort << "\n";
+    }
+    else
+    {
+        std::cout << "BACNET-IP failed to connect to " << remoteIp.c_str() << ":" << remotePort << "\n";
+    }
 }
 
 void BACNETClient::onMappingAdded(const IOMap& map) {
@@ -114,6 +123,7 @@ void BACNETClient::onMappingAdded(const IOMap& map) {
     BACnetRemotePoint point;
     if (parseRemoteDefinition(map, point)) {
         remoteCache[map.remoteAddress] = point;
+        std::cout << "BACNET-IP added map for Instance = " << point.objectInstance << ", Object Type = " << point.objectType << " Property ID = " << point.propertyId << " Value Type = " << point.valueType << "\n";
     }
 }
 
@@ -184,11 +194,13 @@ bool BACNETClient::parseRemoteDefinition(const IOMap &map, BACnetRemotePoint &po
     json config = nullptr;
     if (map.additionalProperties.is_string())
     {
+        std::cout << "BACNET-IP Additional Properties is a string.\n";
         config = json::parse(map.additionalProperties.get<std::string>());
     }
     else
     {
         config = map.additionalProperties;
+        std::cout << "BACNET-IP Additional Properties is an object.\n";
     }
     if (parseJsonRemote(config, point))
     {
@@ -206,11 +218,20 @@ bool BACNETClient::parseJsonRemote(const json& config, BACnetRemotePoint& point)
     if (objectTypeToken) {
         point.objectType = parseObjectType(*objectTypeToken);
     }
+    else
+    {
+        std::cout << "BACNET-IP no object type\n";
+        std::cout << config.dump() << "\n";
+    }
 
     uint32_t instance = 0;
     if (extractNumber(config, "objectInstance", instance) ||
         extractNumber(config, "ObjectInstance", instance)) {
         point.objectInstance = instance;
+    }
+    else
+    {
+        std::cout << "BACNET-IP no object instance\n";
     }
 
     auto propertyToken = extractString(config, "propertyId");
@@ -219,6 +240,10 @@ bool BACNETClient::parseJsonRemote(const json& config, BACnetRemotePoint& point)
     }
     if (propertyToken) {
         point.propertyId = parsePropertyId(*propertyToken);
+    }
+    else
+    {
+        std::cout << "BACNET-IP no property id\n";
     }
 
     auto valueTypeToken = extractString(config, "valueType");
@@ -229,6 +254,10 @@ bool BACNETClient::parseJsonRemote(const json& config, BACnetRemotePoint& point)
     if (valueTypeToken)
     {
         point.valueType = parseValueType(*valueTypeToken);
+    }
+    else
+    {
+        std::cout << "BACNET-IP no value type\n";
     }
 
     int32_t arrayIndex = point.arrayIndex;
@@ -282,18 +311,20 @@ bool BACNETClient::parseStringRemote(const std::string &definition, BACnetRemote
 
 BACNET_OBJECT_TYPE BACNETClient::parseObjectType(const std::string &raw) const
 {
+    std::cout << "BACNET-IP parsing object type " << raw.c_str() << "\n";
     return static_cast<BACNET_OBJECT_TYPE>(std::stoi(raw));
 }
 
 BACNET_PROPERTY_ID BACNETClient::parsePropertyId(const std::string &raw) const
 {
-
-    return static_cast<BACNET_PROPERTY_ID>(std::stoi(key));
+    std::cout << "BACNET-IP parsing property id " << raw.c_str() << "\n";
+    return static_cast<BACNET_PROPERTY_ID>(std::stoi(raw));
 }
 
 uint8_t BACNETClient::parseValueType(const std::string &raw) const
 {
-    uint8_t result = BACNET_APPLICATION_TAG_ENUMERATED;
+    std::cout << "BACNET-IP parsing value type " << raw.c_str() << "\n";
+    BACNET_APPLICATION_TAG result = BACNET_APPLICATION_TAG_ENUMERATED;
     if (raw == "i")
     {
         result = BACNET_APPLICATION_TAG_SIGNED_INT;
@@ -314,7 +345,7 @@ uint8_t BACNETClient::parseValueType(const std::string &raw) const
     {
         result = BACNET_APPLICATION_TAG_REAL;
     }
-    return result;
+    return static_cast<uint8_t>(result);
 }
 
 bool BACNETClient::performRead(const BACnetRemotePoint &point, BACNET_APPLICATION_DATA_VALUE &value)

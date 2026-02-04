@@ -297,7 +297,7 @@ IOMap::IOMap(std::string mapJson){
     width = std::atoi(j["RemoteSize"].get<std::string>().c_str());
     interval = std::atoi(j["PollTime"].get<std::string>().c_str());
     protocol = j["Protocol"];
-    additionalProperties = j["AdditionalProperties"];
+    additionalProperties = j["ProtocolProperties"];
     if(localAddress.find("%Q") != std::string::npos){
         direction = IOType::Output;
     }

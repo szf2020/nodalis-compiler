@@ -34,7 +34,7 @@ export class IOMap {
     this.width = parseInt(j.RemoteSize);
     this.interval = parseInt(j.PollTime);
     this.protocol = j.Protocol;
-    this.additionalProperties = j.AdditionalProperties || {};
+    this.additionalProperties = j.ProtocolProperties || {};
     this.direction = this.localAddress.includes("%Q") ? "Output" : "Input";
     this.lastPoll = elapsed();
     this.bit = -1;
