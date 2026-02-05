@@ -8,6 +8,7 @@
      <LangVersion>latest</LangVersion>
     </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="System.Runtime.InteropServices" Version="4.3.0" />
     <PackageReference Include="BACnet" Version="3.0.2" />
     <PackageReference Include="Jint" Version="4.4.2" />
     <PackageReference Include="System.Text.Json" Version="*" />
@@ -17,6 +18,9 @@
     <None Include="README.md" Pack="true" PackagePath="\" />
     <None Include="..\..\..\..\..\..\nodalis.png" Pack="true" PackagePath="\" Link="nodalis.png" />
   </ItemGroup>
+  <PropertyGroup>
+  <NoWarn>$(NoWarn);NU1605</NoWarn>
+</PropertyGroup>
   <PropertyGroup>
   <TargetFrameworks>net8.0</TargetFrameworks> 
   <GeneratePackageOnBuild>true</GeneratePackageOnBuild> <!-- optional -->

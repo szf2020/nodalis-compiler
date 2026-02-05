@@ -15,7 +15,13 @@
     #include <ws2tcpip.h>
     #pragma comment(lib, "ws2_32.lib")
 #else
-    #include <arpa/inet.h>
+#include <ifaddrs.h>
+
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <unistd.h>
 #endif
 
 namespace {
@@ -66,6 +72,85 @@ namespace {
         }
         return std::nullopt;
     }
+}
+static const char *pdu_type_name(uint8_t pduType)
+{
+    switch (pduType)
+    {
+    case PDU_TYPE_SIMPLE_ACK:
+        return "SIMPLE_ACK";
+    case PDU_TYPE_COMPLEX_ACK:
+        return "COMPLEX_ACK";
+    case PDU_TYPE_ERROR:
+        return "ERROR";
+    case PDU_TYPE_REJECT:
+        return "REJECT";
+    case PDU_TYPE_ABORT:
+        return "ABORT";
+    case PDU_TYPE_CONFIRMED_SERVICE_REQUEST:
+        return "CONFIRMED_REQ";
+    case PDU_TYPE_UNCONFIRMED_SERVICE_REQUEST:
+        return "UNCONFIRMED_REQ";
+    default:
+        return "OTHER";
+    }
+}
+
+// Best-effort decode of BACnet Error PDU's error-class and error-code.
+// Works with common bacnet-stack decode signatures that are non-const.
+static bool decode_error_class_code(
+    const uint8_t *apdu, int apduLen, int offset,
+    uint32_t &errClass, uint32_t &errCode)
+{
+    errClass = 0;
+    errCode = 0;
+
+    if (!apdu || apduLen <= offset)
+        return false;
+
+    const uint8_t *p = apdu + offset;
+    int len = apduLen - offset;
+
+    uint8_t tag_number = 0;
+    uint32_t len_value_type = 0;
+
+    // context tag 0 (error-class)
+    int lvt = decode_tag_number_and_value(const_cast<uint8_t *>(p), &tag_number, &len_value_type);
+    if (lvt <= 0 || tag_number != 0)
+        return false;
+    p += lvt;
+    len -= lvt;
+    if (len <= 0)
+        return false;
+
+    int used = decode_enumerated(const_cast<uint8_t *>(p), len, &errClass);
+    if (used <= 0)
+        return false;
+    p += used;
+    len -= used;
+
+    // context tag 1 (error-code)
+    lvt = decode_tag_number_and_value(const_cast<uint8_t *>(p), &tag_number, &len_value_type);
+    if (lvt <= 0 || tag_number != 1)
+        return false;
+    p += lvt;
+    len -= lvt;
+    if (len <= 0)
+        return false;
+
+    used = decode_enumerated(const_cast<uint8_t *>(p), len, &errCode);
+    if (used <= 0)
+        return false;
+
+    return true;
+}
+
+// Small hex dump helper for debugging
+static void dump_hex(const uint8_t *b, int n)
+{
+    for (int i = 0; i < n; i++)
+        std::printf("%02X ", b[i]);
+    std::printf("\n");
 }
 
 BACNETClient::BACNETClient(const std::string& ip, uint16_t port)
@@ -127,6 +212,146 @@ void BACNETClient::onMappingAdded(const IOMap& map) {
     }
 }
 
+#ifndef _WIN32
+static std::string iface_name_for_local_ip(const std::string &localIp)
+{
+    struct ifaddrs *ifaddr = nullptr;
+    if (getifaddrs(&ifaddr) != 0)
+    {
+        throw std::runtime_error("getifaddrs() failed");
+    }
+
+    std::string found;
+    for (auto *ifa = ifaddr; ifa != nullptr; ifa = ifa->ifa_next)
+    {
+        if (!ifa->ifa_addr)
+            continue;
+        if (ifa->ifa_addr->sa_family != AF_INET)
+            continue;
+
+        auto *sa = (sockaddr_in *)ifa->ifa_addr;
+        char buf[INET_ADDRSTRLEN] = {0};
+        if (!inet_ntop(AF_INET, &sa->sin_addr, buf, sizeof(buf)))
+            continue;
+
+        if (localIp == buf)
+        {
+            found = ifa->ifa_name; // e.g. "en0", "eth0"
+            break;
+        }
+    }
+
+    freeifaddrs(ifaddr);
+
+    if (found.empty())
+    {
+        throw std::runtime_error("No interface found with IP: " + localIp);
+    }
+    return found;
+}
+
+#endif
+
+static std::string get_local_ip_for_remote(const std::string &remoteIp, uint16_t remotePort)
+{
+#ifdef _WIN32
+    // Make sure Winsock is up (call once globally in your app if you prefer)
+    static bool wsaInit = false;
+    if (!wsaInit)
+    {
+        WSADATA wsaData;
+        int r = WSAStartup(MAKEWORD(2, 2), &wsaData);
+        if (r != 0)
+            throw std::runtime_error("WSAStartup failed");
+        wsaInit = true;
+    }
+#endif
+
+    // Create UDP socket
+    int sock =
+#ifdef _WIN32
+        (int)socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+#else
+        socket(AF_INET, SOCK_DGRAM, 0);
+#endif
+    if (sock < 0)
+        throw std::runtime_error("socket() failed");
+
+    // Build remote address
+    sockaddr_in remote{};
+    remote.sin_family = AF_INET;
+    remote.sin_port = htons(remotePort);
+    if (inet_pton(AF_INET, remoteIp.c_str(), &remote.sin_addr) != 1)
+    {
+#ifdef _WIN32
+        closesocket(sock);
+#else
+        close(sock);
+#endif
+        throw std::runtime_error("inet_pton() failed for remoteIp: " + remoteIp);
+    }
+
+    // "Connect" UDP socket (doesn't send packets; just sets default route/interface)
+    if (
+#ifdef _WIN32
+        connect(sock, (sockaddr *)&remote, sizeof(remote)) == SOCKET_ERROR
+#else
+        connect(sock, (sockaddr *)&remote, sizeof(remote)) < 0
+#endif
+    )
+    {
+#ifdef _WIN32
+        closesocket(sock);
+#else
+        close(sock);
+#endif
+        throw std::runtime_error("connect() failed");
+    }
+
+    // Query local address chosen by OS routing
+    sockaddr_in local{};
+#ifdef _WIN32
+    int localLen = sizeof(local);
+#else
+    socklen_t localLen = sizeof(local);
+#endif
+    if (
+#ifdef _WIN32
+        getsockname(sock, (sockaddr *)&local, &localLen) == SOCKET_ERROR
+#else
+        getsockname(sock, (sockaddr *)&local, &localLen) < 0
+#endif
+    )
+    {
+#ifdef _WIN32
+        closesocket(sock);
+#else
+        close(sock);
+#endif
+        throw std::runtime_error("getsockname() failed");
+    }
+
+    // Convert local IP to string
+    char buf[INET_ADDRSTRLEN] = {0};
+    if (!inet_ntop(AF_INET, &local.sin_addr, buf, sizeof(buf)))
+    {
+#ifdef _WIN32
+        closesocket(sock);
+#else
+        close(sock);
+#endif
+        throw std::runtime_error("inet_ntop() failed");
+    }
+
+#ifdef _WIN32
+    closesocket(sock);
+#else
+    close(sock);
+#endif
+
+    return std::string(buf);
+}
+
 bool BACNETClient::ensureDatalink() {
     if (datalinkReady) {
         return true;
@@ -138,7 +363,18 @@ bool BACNETClient::ensureDatalink() {
         return false;
     }
 #endif
-    char ifname[] = "0.0.0.0";
+    std::string localIp = get_local_ip_for_remote(remoteIp, 47808);
+
+#ifdef _WIN32
+    // Windows bacnet-stack ports commonly accept dotted IP for BACNET_IFACE
+    std::string ifaceParam = localIp;
+#else
+    // BSD/Linux ports commonly expect the interface name (en0/eth0)
+    std::string ifaceParam = iface_name_for_local_ip(localIp);
+#endif
+
+    char ifname[64];
+    std::snprintf(ifname, sizeof(ifname), "%s", ifaceParam.c_str());
     datalink_init(ifname);
     address_init();
     // tsm_init();
@@ -350,7 +586,8 @@ uint8_t BACNETClient::parseValueType(const std::string &raw) const
 
 bool BACNETClient::performRead(const BACnetRemotePoint &point, BACNET_APPLICATION_DATA_VALUE &value)
 {
-    if (!ensureDatalink()) {
+    if (!ensureDatalink())
+    {
         return false;
     }
 
@@ -366,59 +603,160 @@ bool BACNETClient::performRead(const BACnetRemotePoint &point, BACNET_APPLICATIO
 
     std::array<uint8_t, PDU_BUFFER_SIZE> buffer{};
     int pduLen = npdu_encode_pdu(buffer.data(), &dest, nullptr, &npdu);
-    if (pduLen < 0) {
+    if (pduLen < 0)
+    {
         return false;
     }
+
     uint8_t invoke = nextInvokeId();
     pduLen += rp_encode_apdu(buffer.data() + pduLen, invoke, &request);
 
-    if (datalink_send_pdu(&dest, &npdu, buffer.data(), pduLen) <= 0) {
+    if (datalink_send_pdu(&dest, &npdu, buffer.data(), pduLen) <= 0)
+    {
         return false;
     }
 
     const auto deadline = std::chrono::steady_clock::now() + REQUEST_TIMEOUT;
-    while (std::chrono::steady_clock::now() < deadline) {
+
+    while (std::chrono::steady_clock::now() < deadline)
+    {
         BACNET_ADDRESS source{};
         std::array<uint8_t, PDU_BUFFER_SIZE> rx{};
         int received = datalink_receive(&source, rx.data(), rx.size(), 10);
-        if (received <= 0) {
+        if (received <= 0)
+        {
             continue;
         }
 
+        // ---- NPDU decode (with BVLC fallback) ----
         BACNET_NPDU_DATA rxNpdu{};
         int offset = npdu_decode(rx.data(), nullptr, &source, &rxNpdu);
-        if (offset < 0 || received - offset < 3) {
+
+        // If decode failed and packet looks like BVLC (BACnet/IP), retry after 4-byte BVLC header.
+        if (offset < 0 && received >= 4 && rx[0] == 0x81)
+        {
+            offset = npdu_decode(rx.data() + 4, nullptr, &source, &rxNpdu);
+            if (offset >= 0)
+            {
+                offset += 4; // adjust back to original rx buffer offset
+            }
+        }
+
+        if (offset < 0)
+        {
             continue;
         }
 
-        uint8_t* apdu = rx.data() + offset;
-        if ((apdu[0] & 0xF0) != (PDU_TYPE_COMPLEX_ACK << 4)) {
-            continue;
-        }
-        if (apdu[1] != invoke) {
-            continue;
-        }
-        if (apdu[2] != SERVICE_CONFIRMED_READ_PROPERTY) {
+        int apdu_len = received - offset;
+        if (apdu_len < 2)
+        {
             continue;
         }
 
-        BACNET_READ_PROPERTY_DATA ack{};
-        if (rp_ack_decode_service_request(apdu + 3, received - offset - 3, &ack) < 0) {
+        uint8_t *apdu = rx.data() + offset;
+
+        // IMPORTANT: your stack's PDU_TYPE_* constants appear to already be 0x10/0x20/0x30...
+        // So compare using (apdu[0] & 0xF0) directly to PDU_TYPE_* (no shifts).
+        uint8_t pduType = (apdu[0] & 0xF0);
+
+        // Only these contain invoke id at apdu[1]
+        bool hasInvoke = (pduType == PDU_TYPE_SIMPLE_ACK ||
+                          pduType == PDU_TYPE_COMPLEX_ACK ||
+                          pduType == PDU_TYPE_ERROR ||
+                          pduType == PDU_TYPE_REJECT ||
+                          pduType == PDU_TYPE_ABORT);
+
+        if (!hasInvoke)
+        {
             continue;
         }
-        if (!ack.application_data || ack.application_data_len <= 0) {
+
+        // Must match our invoke id
+        if (apdu[1] != invoke)
+        {
+            continue;
+        }
+
+        // ---- Success case: ComplexACK for ReadProperty ----
+        if (pduType == PDU_TYPE_COMPLEX_ACK)
+        {
+            if (apdu_len < 3)
+            {
+                continue;
+            }
+            if (apdu[2] != SERVICE_CONFIRMED_READ_PROPERTY)
+            {
+                continue;
+            }
+
+            BACNET_READ_PROPERTY_DATA ack{};
+            if (rp_ack_decode_service_request(apdu + 3, apdu_len - 3, &ack) < 0)
+            {
+                continue;
+            }
+            if (!ack.application_data || ack.application_data_len <= 0)
+            {
+                return false;
+            }
+            if (bacapp_decode_application_data(ack.application_data, ack.application_data_len, &value) < 0)
+            {
+                return false;
+            }
+            return true;
+        }
+
+        // ---- ERROR / REJECT / ABORT handling (robust) ----
+
+        if (pduType == PDU_TYPE_ERROR)
+        {
+            uint8_t service = (apdu_len >= 3) ? apdu[2] : 0xFF;
+            uint32_t errClass = 0, errCode = 0;
+            bool decoded = (apdu_len > 3) && decode_error_class_code(apdu, apdu_len, 3, errClass, errCode);
+
+            std::cout << "BACNET-IP performRead got ERROR for invoke=" << int(invoke)
+                      << " service=" << int(service);
+
+            if (decoded)
+            {
+                std::cout << " errClass=" << errClass << " errCode=" << errCode;
+            }
+            else
+            {
+                std::cout << " (could not decode error class/code)";
+            }
+            std::cout << "\n";
+
             return false;
         }
-        if (bacapp_decode_application_data(ack.application_data, ack.application_data_len, &value) < 0) {
+
+        if (pduType == PDU_TYPE_REJECT)
+        {
+            uint8_t reason = (apdu_len >= 3) ? apdu[2] : 0xFF;
+            std::cout << "BACNET-IP performRead got REJECT for invoke=" << int(invoke)
+                      << " reason=" << int(reason) << "\n";
             return false;
         }
-        return true;
+
+        if (pduType == PDU_TYPE_ABORT)
+        {
+            uint8_t reason = (apdu_len >= 3) ? apdu[2] : 0xFF;
+            bool server = (apdu[0] & 0x01) != 0;
+            std::cout << "BACNET-IP performRead got ABORT for invoke=" << int(invoke)
+                      << " reason=" << int(reason)
+                      << " server=" << (server ? "true" : "false") << "\n";
+            return false;
+        }
+
+        // SimpleACK is not expected for ReadProperty; ignore.
     }
+
     return false;
 }
 
-bool BACNETClient::performWrite(const BACnetRemotePoint& point, const BACNET_APPLICATION_DATA_VALUE& value) {
-    if (!ensureDatalink()) {
+bool BACNETClient::performWrite(const BACnetRemotePoint &point, const BACNET_APPLICATION_DATA_VALUE &value)
+{
+    if (!ensureDatalink())
+    {
         return false;
     }
 
@@ -428,7 +766,8 @@ bool BACNETClient::performWrite(const BACnetRemotePoint& point, const BACNET_APP
 
     std::array<uint8_t, PDU_BUFFER_SIZE> buffer{};
     int pduLen = npdu_encode_pdu(buffer.data(), &dest, nullptr, &npdu);
-    if (pduLen < 0) {
+    if (pduLen < 0)
+    {
         return false;
     }
 
@@ -442,7 +781,8 @@ bool BACNETClient::performWrite(const BACnetRemotePoint& point, const BACNET_APP
     std::array<uint8_t, MAX_APDU> app{};
     BACNET_APPLICATION_DATA_VALUE copy = value;
     int appLen = bacapp_encode_application_data(app.data(), &copy);
-    if (appLen <= 0) {
+    if (appLen <= 0)
+    {
         return false;
     }
     request.application_data_len = appLen;
@@ -452,37 +792,169 @@ bool BACNETClient::performWrite(const BACnetRemotePoint& point, const BACNET_APP
     uint8_t invoke = nextInvokeId();
     pduLen += wp_encode_apdu(buffer.data() + pduLen, invoke, &request);
 
-    if (datalink_send_pdu(&dest, &npdu, buffer.data(), pduLen) <= 0) {
+    if (datalink_send_pdu(&dest, &npdu, buffer.data(), pduLen) <= 0)
+    {
         return false;
     }
 
     const auto deadline = std::chrono::steady_clock::now() + REQUEST_TIMEOUT;
-    while (std::chrono::steady_clock::now() < deadline) {
+
+    while (std::chrono::steady_clock::now() < deadline)
+    {
         BACNET_ADDRESS source{};
         std::array<uint8_t, PDU_BUFFER_SIZE> rx{};
         int received = datalink_receive(&source, rx.data(), rx.size(), 10);
-        if (received <= 0) {
+        if (received <= 0)
+        {
             continue;
         }
 
+        // std::cout << "RX " << received << " bytes\n";
+        // int n = received < 16 ? received : 16;
+        // for (int i = 0; i < n; i++)
+        // {
+        //     printf("%02X ", rx[i]);
+        // }
+        // printf("\n");
+
+        // ---- NPDU decode (with BVLC fallback) ----
         BACNET_NPDU_DATA rxNpdu{};
         int offset = npdu_decode(rx.data(), nullptr, &source, &rxNpdu);
-        if (offset < 0 || received - offset < 3) {
+
+        // If decode failed and packet looks like BVLC (BACnet/IP), retry after 4-byte BVLC header.
+        if (offset < 0 && received >= 4 && rx[0] == 0x81)
+        {
+            offset = npdu_decode(rx.data() + 4, nullptr, &source, &rxNpdu);
+            if (offset >= 0)
+            {
+                offset += 4; // adjust back to original rx buffer offset
+            }
+        }
+
+        if (offset < 0)
+        {
             continue;
         }
 
-        uint8_t* apdu = rx.data() + offset;
-        if ((apdu[0] & 0xF0) != (PDU_TYPE_SIMPLE_ACK << 4)) {
+        int apdu_len = received - offset;
+        if (apdu_len < 1)
+        {
             continue;
         }
-        if (apdu[1] != invoke) {
+
+        uint8_t *apdu = rx.data() + offset;
+        uint8_t pduType = (apdu[0] & 0xF0);
+
+        // std::cout << "offset=" << offset << " apdu_len=" << apdu_len << "\n";
+        // if (apdu_len >= 1)
+        // {
+        //     printf("pduType=0x%02X (%s)\n", pduType, pdu_type_name(pduType));
+        // }
+        // if (apdu_len >= 2)
+        // {
+        //     std::cout << "invoke=" << int(apdu[1]) << " (expect " << int(invoke) << ")\n";
+        // }
+        // if (apdu_len >= 3)
+        // {
+        //     std::cout << "service=" << int(apdu[2]) << "\n";
+        // }
+
+        // Only these response types contain an invoke id at apdu[1]
+        bool hasInvoke = (pduType == PDU_TYPE_SIMPLE_ACK ||
+                          pduType == PDU_TYPE_COMPLEX_ACK ||
+                          pduType == PDU_TYPE_ERROR ||
+                          pduType == PDU_TYPE_REJECT ||
+                          pduType == PDU_TYPE_ABORT);
+
+        if (!hasInvoke)
+        {
+            // Not a confirmed-service reply; ignore
             continue;
         }
-        if (apdu[2] != SERVICE_CONFIRMED_WRITE_PROPERTY) {
+
+        if (apdu_len < 2)
+        {
+            // Should not happen for these types, but be safe
             continue;
         }
-        return true;
+
+        // Must match our invoke id
+        if (apdu[1] != invoke)
+        {
+            continue;
+        }
+
+        // ---- Robust response handling ----
+
+        // SUCCESS: SimpleACK for WriteProperty
+        if (pduType == PDU_TYPE_SIMPLE_ACK)
+        {
+            if (apdu_len >= 3 && apdu[2] == SERVICE_CONFIRMED_WRITE_PROPERTY)
+            {
+                return true;
+            }
+            // SimpleACK but not for WriteProperty; ignore
+            continue;
+        }
+
+        // ERROR: device understood but rejected with error class/code
+        if (pduType == PDU_TYPE_ERROR)
+        {
+            uint8_t service = (apdu_len >= 3) ? apdu[2] : 0xFF;
+            uint32_t errClass = 0, errCode = 0;
+            bool decoded = (apdu_len > 3) && decode_error_class_code(apdu, apdu_len, 3, errClass, errCode);
+
+            std::cout << "BACNET-IP performWrite got ERROR for invoke=" << int(invoke)
+                      << " service=" << int(service);
+
+            if (decoded)
+            {
+                std::cout << " errClass=" << errClass << " errCode=" << errCode;
+            }
+            else
+            {
+                std::cout << " (could not decode error class/code)";
+            }
+            std::cout << "\n";
+
+            return false;
+        }
+
+        // REJECT: device rejected request (invalid params, unsupported service, etc.)
+        if (pduType == PDU_TYPE_REJECT)
+        {
+            uint8_t reason = (apdu_len >= 3) ? apdu[2] : 0xFF;
+            std::cout << "BACNET-IP performWrite got REJECT for invoke=" << int(invoke)
+                      << " reason=" << int(reason) << "\n";
+            return false;
+        }
+
+        // ABORT: device aborted processing
+        if (pduType == PDU_TYPE_ABORT)
+        {
+            uint8_t reason = (apdu_len >= 3) ? apdu[2] : 0xFF;
+            bool server = (apdu[0] & 0x01) != 0; // BACnet: bit0 indicates server abort
+            std::cout << "BACNET-IP performWrite got ABORT for invoke=" << int(invoke)
+                      << " reason=" << int(reason)
+                      << " server=" << (server ? "true" : "false") << "\n";
+            return false;
+        }
+
+        // COMPLEX_ACK: not expected for WriteProperty; log and keep waiting
+        if (pduType == PDU_TYPE_COMPLEX_ACK)
+        {
+            uint8_t service = (apdu_len >= 3) ? apdu[2] : 0xFF;
+            std::cout << "BACNET-IP performWrite got COMPLEX_ACK for invoke=" << int(invoke)
+                      << " service=" << int(service) << " (unexpected for WriteProperty)\n";
+            continue;
+        }
+
+        // Anything else with invoke id: log and keep listening
+        std::cout << "BACNET-IP performWrite got " << pdu_type_name(pduType)
+                  << " for invoke=" << int(invoke) << " (unhandled)\n";
     }
+
+    std::cout << "BACNET-IP performWrite Did not receive ACK\n";
     return false;
 }
 
@@ -506,11 +978,13 @@ bool BACNETClient::readBit(const std::string& remote, int& result) {
 bool BACNETClient::writeBit(const std::string& remote, int value) {
     BACnetRemotePoint point;
     if (!resolveRemote(remote, point)) {
+        std::cout << "BACNET-IP writeBit Could not resolve remote " << remote.c_str() << "\n";
         return false;
     }
     BACNET_APPLICATION_DATA_VALUE app{};
     if (!encodeValue(value, point, app))
     {
+        std::cout << "BACNET-IP writeBit Could not encode value " << value << "\n";
         return false;
     }
     return performWrite(point, app);

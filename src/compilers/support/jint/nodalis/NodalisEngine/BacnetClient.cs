@@ -43,22 +43,22 @@ namespace Nodalis
         private int _udpPort = 47808;
         private string _deviceIp = "";
 
-        public BacnetIpClient()
+        public BacnetIpClient() : base("BACNET-IP")
         {
             // parent abstract requires a parameterless constructor usage in NodalisEngine.CreateClient
         }
 
-        public override bool Connect()
+        public override void Connect()
         {
             if (mappings.Count == 0)
-                return false;
+                return;
 
             // Choose module parameters from first mapping (same pattern as ModbusClient).
             var first = mappings[0];
 
             _deviceIp = first.moduleID ?? "";
             if (string.IsNullOrWhiteSpace(_deviceIp))
-                return false;
+                return;
 
             // Port can be 0 in config; treat as default.
             if (!int.TryParse(first.modulePort ?? string.Empty, NumberStyles.Integer, CultureInfo.InvariantCulture, out _udpPort) || _udpPort <= 0)
@@ -83,16 +83,15 @@ namespace Nodalis
             _deviceAddr = new BacnetAddress(BacnetAddressTypes.IP, addrStr);
 
             connected = true;
-            return true;
         }
 
-        public override bool ReadBit(string address, out bool value)
+        public override bool ReadBit(string address, out int value)
         {
-            value = false;
+            value = 0;
             if (!TryReadNumeric(address, out var raw))
                 return false;
 
-            value = raw != 0;
+            value = raw != 0 ? 1 : 0;
             return true;
         }
 
@@ -136,8 +135,8 @@ namespace Nodalis
             return true;
         }
 
-        public override bool WriteBit(string address, bool value)
-            => TryWriteNumeric(address, value ? 1UL : 0UL);
+        public override bool WriteBit(string address, int value)
+            => TryWriteNumeric(address, value > 0 ? 1UL : 0UL);
 
         public override bool WriteByte(string address, byte value)
             => TryWriteNumeric(address, value);

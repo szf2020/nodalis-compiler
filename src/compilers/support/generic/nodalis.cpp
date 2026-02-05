@@ -349,29 +349,41 @@ void IOClient::poll() {
             try {
                 if(elapsed() - map.lastPoll > map.interval){
                     map.lastPoll = elapsed();
-                    if (map.direction == IOType::Output) {
+                    bool result = false;
+                    if (map.direction == IOType::Output)
+                    {
                         switch (map.width) {
                             case 1: {
                                 int bit = ::readBit(map.localAddress);
-                                writeBit(map.remoteAddress, bit);
+                                result = writeBit(map.remoteAddress, bit);
                                 break;
                             }
                             case 8: {
                                 uint8_t val = ::readByte(map.localAddress);
-                                writeByte(map.remoteAddress, val);
+                                result = writeByte(map.remoteAddress, val);
                                 break;
                             }
                             case 16: {
                                 uint16_t val = ::readWord(map.localAddress);
-                                writeWord(map.remoteAddress, val);
+                                result = writeWord(map.remoteAddress, val);
                                 break;
                             }
                             case 32: {
                                 uint32_t val = ::readDWord(map.localAddress);
-                                writeDWord(map.remoteAddress, val);
+                                result = writeDWord(map.remoteAddress, val);
                                 break;
                             }
-                        }
+                            case 64:
+                            {
+                                uint64_t val = ::readLWord(map.localAddress);
+                                result = writeLWord(map.remoteAddress, val);
+                                break;
+                            }
+                            }
+                            if (!result)
+                            {
+                                std::cout << "Failed to write on map for " << map.moduleID << "/" << map.remoteAddress << "\n";
+                            }
                     }
                     else if (map.direction == IOType::Input) {
 
@@ -401,6 +413,15 @@ void IOClient::poll() {
                                 uint32_t val = 0;
                                 if (readDWord(map.remoteAddress, val)) {
                                     ::writeDWord(map.localAddress, val);
+                                }
+                                break;
+                            }
+                            case 64:
+                            {
+                                uint64_t val = 0;
+                                if (readLWord(map.remoteAddress, val))
+                                {
+                                    ::writeLWord(map.localAddress, val);
                                 }
                                 break;
                             }
