@@ -182,6 +182,7 @@ namespace Nodalis
                     
                 }
                 mappings.Add(map);
+                Console.WriteLine(@$"Added map for {map.localAddress} to {map.protocol}:{map.moduleID}/{map.remoteAddress}");
             }
         }
         /// <summary>
@@ -444,9 +445,7 @@ namespace Nodalis
             if (map.protocol == "MODBUS-TCP")
                 client = new ModbusClient();
             else if (map.protocol.Equals("BACNET", StringComparison.InvariantCultureIgnoreCase)
-                  || map.protocol.Equals("BACNET/IP", StringComparison.InvariantCultureIgnoreCase)
-                  || map.protocol.Equals("BACNETIP", StringComparison.InvariantCultureIgnoreCase)
-                  || map.protocol.Equals("BACNET-UDP", StringComparison.InvariantCultureIgnoreCase))
+                  || map.protocol.Equals("BACNET-IP", StringComparison.InvariantCultureIgnoreCase))
                 client = new BacnetIpClient();
             else if (map.protocol == "OPCUA")
                 client = new OPCClient();

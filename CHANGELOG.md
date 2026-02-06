@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),  
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.14] - 2026-02-06
+
+- Added support for BACNET-IP to Generic C++ and JINT compilers.
+
 ## [1.0.13] - 2025-12-17
 
 - Added cross-compilation for the CPPCompiler. Added more detail to the README for compilers.
