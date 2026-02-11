@@ -88,6 +88,10 @@ NodalisEngine is distributed under the Apache 2.0 license. See the headers insid
 
 # Changelog
 
+## [1.0.5] - 2026-02-11
+
+- Fixed issue with constructing a FunctionBlock and calling "newStatic".
+
 ## [1.0.4] - 2025-02-06
 
 - Added support for Bacnet-IP.

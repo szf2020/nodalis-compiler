@@ -324,7 +324,7 @@ namespace Nodalis
         {
             _engine = engine;
             var constructor = engine.GetValue(className);
-            _jsObj = engine.Invoke(constructor).AsObject();
+            _jsObj = engine.Construct(constructor).AsObject();
         }
         /// <summary>
         /// Sets the property of a functionblock.
@@ -442,7 +442,7 @@ namespace Nodalis
         protected virtual IOClient? CreateClient(IOMap map)
         {
             IOClient client = null;
-            if (map.protocol == "MODBUS-TCP")
+            if (map.protocol.StartsWith("MODBUS"))
                 client = new ModbusClient();
             else if (map.protocol.Equals("BACNET", StringComparison.InvariantCultureIgnoreCase)
                   || map.protocol.Equals("BACNET-IP", StringComparison.InvariantCultureIgnoreCase))
@@ -691,14 +691,13 @@ namespace Nodalis
                 var key = args[0].AsString();
                 var jsCtor = args[1];
 
-                if (!_staticStore.TryGetValue(key, out var instance))
-                {
-                    var jsInstance = JsEngine.Invoke(jsCtor);
-                    _staticStore[key] = jsInstance;
-                    return jsInstance;
-                }
+                if (_staticStore.TryGetValue(key, out var existing))
+                    return existing;
 
-                return (JsValue)_staticStore[key];
+                var instance = JsEngine.Construct(jsCtor);
+
+                _staticStore[key] = instance;
+                return instance;
             }, 2, funcFlags));
 
             JsEngine.SetValue("resolve", new ClrFunction(JsEngine, "resolve", (thisObj, args) =>
