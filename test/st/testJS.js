@@ -11,7 +11,7 @@ function normalize(text) {
   return text.replace(/\s+/g, ' ').trim();
 }
 
-function runTest() {
+async function runTest() {
   // Clean output dir
   fs.rmSync(outputPath, { recursive: true, force: true });
 
@@ -50,7 +50,7 @@ function runTest() {
     outputType: "code",
     resourceName: "PLC1"
   });
-  compiler.compile();
+  await compiler.compile();
 
   outputPath = path.resolve('test/st/output/jint');
 
@@ -61,7 +61,18 @@ function runTest() {
     outputType: "executable",
     resourceName: "PLC1"
   });
-  compiler.compile();
+  await compiler.compile();
+
+  fixtureName = "plc";
+  inputPath = path.resolve('test/st/fixtures', `${fixtureName}.st`);
+  compiler = new JSCompiler({
+    sourcePath: inputPath,
+    outputPath,
+    target: 'jint',
+    outputType: "code",
+    resourceName: "PLC1"
+  });
+  await compiler.compile();
 }
 
 runTest();

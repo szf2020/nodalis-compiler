@@ -22,5 +22,6 @@ PROGRAM PLC_PROG
     ELSIF T1.Done = TRUE THEN
         T1.Start := FALSE;
         %QL1.0 := 0;
+        SetRegister(1, 1, 1);
     END_IF;
 END_PROGRAM

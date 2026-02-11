@@ -48,8 +48,8 @@ export function convertExpression(expr, isjsfb = false, jsfbVars = [], isjs=fals
   }
 
   let results = expr
-    .replace(/\bAND\b/gi, '&&')
-    .replace(/\bOR\b/gi, '||')
+    .replace(/\bAND\b/gi, '&')
+    .replace(/\bOR\b/gi, '|')
     .replace(/\bNOT\b/gi, '!')
     .replace(/\bMOD\b/gi, '%')
     .replace(/\bDIV\b/gi, '/')
@@ -78,7 +78,7 @@ export function convertExpression(expr, isjsfb = false, jsfbVars = [], isjs=fals
     if (/^%[IQM][XBWDL]?\d+(\.\d+)?$/i.test(e)) return getReadAddressExpression(e);
 
     // Don't wrap literals or operators
-    if (/^(true|false|null|\d+|!|&&|\|\||==|!=|[<>=+\-*/()])$/i.test(e)) return e;
+    if (/^(true|false|null|\d+|!|&&|\|\||==|!=|[<>=+\-*/(),&|])$/i.test(e)) return e;
 
     // Don't wrap known function expressions (e.g., getBit)
     if (/^getBit\(/.test(e)) return e;
@@ -94,7 +94,7 @@ export function convertExpression(expr, isjsfb = false, jsfbVars = [], isjs=fals
   }).join(' ');
   //if (results.indexOf("read") === -1) {
   results = results.replace(/\b(?<!%)(([A-Za-z_]\w*)\.(\d+))\b/g, (_, full, base, bit) => {
-      return `getBit(&${base}, ${bit})`;
+    return `getBit(${isjs ? "" : "&"}${base}, ${bit})`;
     });
   //}
   

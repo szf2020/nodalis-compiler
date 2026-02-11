@@ -154,13 +154,18 @@ function mapStatement(stmt, infb = false) {
         ];
       }
 
-      case 'CALL':
-        let ext = "";
-        if(infb && fbVars.includes(stmt.name)){
-            ext = "this.";
+      case 'CALL': {
+        // If args exist, it's a normal function call: Foo(a, b);
+        if (stmt.args && stmt.args.length) {
+          const argsExpr = convertExpression(stmt.args, infb, fbVars, true);
+          return [`${stmt.name}(${argsExpr});`];
         }
-        return [`${ext}${stmt.name}.call();`];
 
+      // Otherwise treat as FB instance call: FB1();
+        let ext = "";
+        if (infb && fbVars.includes(stmt.name)) ext = "this.";
+        return [`${ext}${stmt.name}.call();`];
+      }
       default:
         return [`// Unsupported statement type: ${stmt.type}`];
     }

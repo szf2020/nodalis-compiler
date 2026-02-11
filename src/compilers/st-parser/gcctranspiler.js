@@ -138,8 +138,16 @@ function mapStatement(stmt){
             ...transpileStatements(stmt.body)?.map(s => `  ${s}`),
             `}`
           ];
-        case "CALL":
-          return [stmt.name + "();"];
+      case "CALL": {
+        // If args exist, it's a normal function call: Foo(a, b);
+        if (stmt.args && stmt.args.length) {
+          const argsExpr = convertExpression(stmt.args, infb, fbVars, true);
+          return [`${stmt.name}(${argsExpr});`];
+        }
+
+        // Otherwise treat as FB instance call: FB1();
+        return [stmt.name + "();"];
+      }
         default:
           return [`// unsupported: ${stmt.type}`];
       }

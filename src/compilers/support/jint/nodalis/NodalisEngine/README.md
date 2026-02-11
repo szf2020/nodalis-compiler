@@ -1,6 +1,6 @@
 # NodalisEngine
 
-`NodalisEngine` is a .NET Standard 2.0 runtime that executes JavaScript PLC programs produced by the Nodalis compiler. It embeds the [Jint](https://github.com/sebastienros/jint) JavaScript engine, exposes IEC-61131-3 style function blocks, and provides fieldbus adapters (Modbus TCP and OPC UA) so your generated logic can talk to real hardware.
+`NodalisEngine` is a .NET Core 8.0 framework that executes JavaScript PLC programs produced by the Nodalis compiler. It embeds the [Jint](https://github.com/sebastienros/jint) JavaScript engine, exposes IEC-61131-3 style function blocks, and provides fieldbus adapters (Modbus TCP and OPC UA) so your generated logic can talk to real hardware.
 
 ## Highlights
 - **Drop-in runtime** for the code emitted by `nodalis-compiler`.
@@ -85,3 +85,9 @@ This spins up an OPC UA endpoint at `opc.tcp://localhost:4840/UA/Nodalis` using 
 
 ## License
 NodalisEngine is distributed under the Apache 2.0 license. See the headers inside the source files for details.
+
+# Changelog
+
+## [1.0.4] - 2025-02-06
+
+- Added support for Bacnet-IP.

@@ -36,7 +36,7 @@ export function tokenize(code) {
   code = code.replace(/\(\*[\s\S]*?\*\)/g, '');
 
   //const regex = /(%[IQM][A-Z]?[0-9]+(?:\.[0-9]+)?)|(:=)|([A-Za-z_]\w*\.\d+)|([A-Za-z_]\w*\.\w+)|([A-Za-z_]\w*)|(\d+)|([:;()<>+\-*/=])/g;
-  const regex = /(%[IQM][A-Z]*\d+(?:\.\d+)?)|(:=|>=|<=|<>|!=)|([A-Za-z_]\w*\.\d+)|([A-Za-z_]\w*\.\w+)|([A-Za-z_]\w*)|(\d+)|([<>+\-*/=;():])/g;
+  const regex = /(%[IQM][A-Z]*\d+(?:\.\d+)?)|(:=|>=|<=|<>|!=)|([A-Za-z_]\w*\.\d+)|([A-Za-z_]\w*\.\w+)|([A-Za-z_]\w*)|(\d+)|([<>+\-*/=;():,])/g;
 
 while ((match = regex.exec(code)) !== null) {
   const [_, address, compoundSymbol, bitIdentifier, propIdentifier, identifier, number, symbol] = match;

@@ -162,13 +162,27 @@ if (peek(i)?.value === ':=') {
   return { type: 'ASSIGN', left: lhs, right };
 }
 
-  // Function block call like: T1();
-  if (token.value && peek(1)?.value === '(' && peek(2)?.value === ')') {
-    const name = consume().value;
-    consume(); // (
-    consume(); // )
+  // Call statement like: Foo(...);
+  if (token.type === 'IDENTIFIER' && peek(1)?.value === '(') {
+    const name = consume().value; // IDENTIFIER
+    consume(); // '('
+
+    const args = [];
+    let depth = 1;
+
+    while (peek() && depth > 0) {
+      const t = consume();
+
+      if (t.value === '(') depth++;
+      else if (t.value === ')') depth--;
+
+      if (depth > 0) args.push(t.value); // don't include final ')'
+    }
+
+  // optional semicolon
     if (peek()?.value === ';') consume();
-    return { type: 'CALL', name };
+
+    return { type: 'CALL', name, args };
   }
 
   consume(); // Skip unknown
