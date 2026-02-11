@@ -8,6 +8,10 @@
 
 - Added support for BACNET-IP to Generic C++ and JINT compilers.
 
+## [1.0.14] - 2026-02-06
+
+- Added support for BACNET-IP to Generic C++ and JINT compilers.
+
 ## [1.0.13] - 2025-12-17
 
 - Added cross-compilation for the CPPCompiler. Added more detail to the README for compilers.
